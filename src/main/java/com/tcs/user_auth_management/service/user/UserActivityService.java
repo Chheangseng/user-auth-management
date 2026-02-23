@@ -57,7 +57,7 @@ public class UserActivityService {
   private void saveAudit(
           DtoUserRequestInfo request, UserAuth userAuth, AuthenticationStatus status, boolean isLogin) {
     LoginAudit audit = mapper.toEntity(request);
-    audit.setUserAuth(userAuth);
+    audit.setUserAuthId(userAuth.getId());
     audit.setStatus(status);
 
     if (isLogin) {
@@ -71,7 +71,7 @@ public class UserActivityService {
 
   private void validationLoginRisk(UserAuth userAuth) {
     List<LoginAudit> loginAudits =
-        repository.findTop2ByUserAuthIdOrderByLoginTimeDesc(userAuth.getId());
+        repository.findTop2ByUserAuthIdOrderByLoginTimeDesc(userAuth.getId().toString());
     if (loginAudits.size() == 2) {
       int risk = calculateRisk(loginAudits.get(0), loginAudits.get(1));
       userAuth.setRisk(risk);

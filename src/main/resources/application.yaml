@@ -25,25 +25,7 @@ spring:
   servlet:
     multipart:
       max-file-size: 1000MB
-      #ddl-auto = create-drop , update
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        generate_statistics: true
-        #value for using mySql = org.hibernate.dialect.MySQLDialect
-        #value for using postgres  = org.hibernate.dialect.PostgreSQLDialect
-        dialect: ${DATABASE_TYPE}
-        format_sql: false
-        show_sql: true
-        connection:
-          url: ${spring.datasource.url}
-          username: ${spring.datasource.username}
-          password: ${spring.datasource.password}
-          autocommit: false
-          isolation: TRANSACTION_REPEATABLE_READ
-          pool_size: ${spring.datasource.hikari.maximum-pool-size}
+
 logging:
   level:
     org:

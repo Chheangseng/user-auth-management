@@ -1,7 +1,10 @@
 package com.tcs.user_auth_management.model.entity.user;
 
+import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -14,9 +17,7 @@ public record UserSecurity(UserAuth userAccount) implements UserDetails {
 
   @Override
   public Collection<? extends GrantedAuthority> getAuthorities() {
-    return this.userAccount.getRoles().stream()
-        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getValue().toUpperCase()))
-        .collect(Collectors.toSet());
+    return Collections.EMPTY_LIST;
   }
 
   @Override
@@ -49,17 +50,35 @@ public record UserSecurity(UserAuth userAccount) implements UserDetails {
     return this.userAccount.isActivate();
   }
 
+  public UUID getUserId() {
+    return this.userAccount.getId();
+  }
+
   public static Optional<UserSecurity> getUserSecurityContext() {
-    return UserSecurity.getUserSecurityBYAuthentication(
+    return UserSecurity.getUserSecurityByAuthentication(
         SecurityContextHolder.getContext().getAuthentication());
   }
 
-  public static Optional<UserSecurity> getUserSecurityBYAuthentication(
+  public static Optional<UserSecurity> getUserSecurityByAuthentication(
       Authentication authentication) {
     if (authentication != null && authentication.getPrincipal() instanceof UserSecurity) {
       return Optional.of((UserSecurity) authentication.getPrincipal());
     }
     return Optional.empty(); // or throw exception if required
+  }
+  public static Optional<UserSecurity> getUserSecurity(){
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (authentication != null && authentication.getPrincipal() instanceof UserSecurity) {
+      return Optional.of((UserSecurity) authentication.getPrincipal());
+    }
+    return Optional.empty();
+  }
+
+  public static UserSecurity userSecurityByAuthentication(Authentication authentication) {
+    if (authentication != null && authentication.getPrincipal() instanceof UserSecurity) {
+      return (UserSecurity) authentication.getPrincipal();
+    }
+    throw new ApiExceptionStatusException("Java Typing model user security error", 500);
   }
 
   public static Authentication getAuthenticationByUserAuth(UserAuth userAuth) {

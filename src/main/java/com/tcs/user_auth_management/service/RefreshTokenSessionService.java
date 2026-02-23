@@ -2,11 +2,11 @@ package com.tcs.user_auth_management.service;
 
 import com.tcs.user_auth_management.emuns.JwtTokenType;
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
-import com.tcs.user_auth_management.model.entity.RefreshToken;
+import com.tcs.user_auth_management.model.entity.UserSession;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import com.tcs.user_auth_management.model.entity.user.UserSecurity;
-import com.tcs.user_auth_management.repository.RefreshTokenRepository;
 import com.tcs.user_auth_management.repository.UserAuthRepository;
+import com.tcs.user_auth_management.repository.UserSessionRepository;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
 @Service
 @AllArgsConstructor
 public class RefreshTokenSessionService {
-  private final RefreshTokenRepository repository;
+  private final UserSessionRepository repository;
   private final UserAuthRepository userAuthRepository;
   private final JwtEncoder encoder;
   private final JwtDecoder decoder;
@@ -31,34 +31,16 @@ public class RefreshTokenSessionService {
 
   public void invokeToken(String token) {
     Jwt jwt = verifyRefreshToken(token);
-    String sessionId = jwt.getClaim("sessionId");
+    String sessionId = jwt.getId();
     if (Objects.isNull(sessionId)) return;
-    repository
-        .findBySessionId(sessionId)
-        .ifPresent(
-            refreshToken -> {
-              refreshToken.setInvoked(true);
-              repository.save(refreshToken);
-            });
+    repository.invokedSessionById(sessionId);
   }
 
   public void invokeAllToken(String token) {
     Jwt jwt = verifyRefreshToken(token);
-    String sessionId = jwt.getClaim("sessionId");
-    if (Objects.isNull(sessionId)) return;
-    repository
-        .findWithUserAuthBySessionId(sessionId)
-        .ifPresent(
-            refreshToken -> {
-              UserAuth userAuth = refreshToken.getUserAuth();
-              userAuth
-                  .getRefreshTokens()
-                  .forEach(
-                      refreshToken1 -> {
-                        refreshToken1.setInvoked(true);
-                      });
-              userAuthRepository.save(userAuth);
-            });
+    String userId = jwt.getSubject();
+    if (Objects.isNull(userId)) return;
+    repository.invokedSessionAllByUserId(jwt.getSubject());
   }
 
   public String generateRefreshTokenBySessionId(
@@ -80,7 +62,7 @@ public class RefreshTokenSessionService {
       return generateRefreshTokenSession(authentication, now);
     }
 
-    RefreshToken sessionRefresh = repository.findBySessionId(sessionId).orElseGet(() -> null);
+    UserSession sessionRefresh = repository.findById(sessionId).orElseGet(() -> null);
 
     if (sessionRefresh == null) {
       return generateRefreshTokenBySessionId(sessionId, authentication, now);
@@ -98,15 +80,10 @@ public class RefreshTokenSessionService {
 
   private void createRefreshTokenSession(
       Authentication authentication, String sessionId, Instant expiredTime) {
-    RefreshToken entity = new RefreshToken();
+    UserSession entity = new UserSession();
     entity.setExpiryDate(expiredTime);
-    entity.setSessionId(sessionId);
-    UserSecurity userSecurity =
-        UserSecurity.getUserSecurityBYAuthentication(authentication)
-            .orElseThrow(
-                () ->
-                    new ApiExceptionStatusException("Java Typing model user security error", 500));
-    entity.setUserAuth(userAuthRepository.getReferenceById(userSecurity.userAccount().getId()));
+    UserSecurity userSecurity = UserSecurity.userSecurityByAuthentication(authentication);
+    entity.setUserAuthId(userSecurity.userAccount().getId());
     repository.save(entity);
   }
 
@@ -132,15 +109,16 @@ public class RefreshTokenSessionService {
 
   private String generateRefreshToken(
       Authentication authentication, String sessionId, Instant now, Instant expiredTime) {
+    UserSecurity userSecurity = UserSecurity.userSecurityByAuthentication(authentication);
     String issuer = "authentication-server";
     JwtClaimsSet claims =
         JwtClaimsSet.builder()
+            .id(sessionId)
             .issuer(issuer)
             .issuedAt(now)
             .expiresAt(expiredTime)
-            .subject(authentication.getName())
+            .subject(userSecurity.getUserId().toString())
             .claim("type", JwtTokenType.REFRESH.getType())
-            .claim("sessionId", sessionId)
             .build();
     return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
   }

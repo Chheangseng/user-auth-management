@@ -1,28 +1,23 @@
 package com.tcs.user_auth_management.model.entity.common;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.EntityListeners;
-import jakarta.persistence.MappedSuperclass;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.springframework.data.relational.core.mapping.Column;
 
-@MappedSuperclass
-@EntityListeners(AuditingEntityListener.class)
 public abstract class Auditable {
-
-  @CreatedBy
-  @Column(updatable = false)
-  private String createdBy;
-
+  @Column("created_at")
   @CreatedDate
-  @Column(updatable = false)
-  private LocalDateTime createdAt;
+  private Instant createdAt;
 
-  @LastModifiedBy private String updatedBy;
+//  @CreatedBy private String createdBy;
 
-  @LastModifiedDate private LocalDateTime updatedAt;
+  @Column("updated_at")
+  @LastModifiedDate
+  private Instant updatedAt;
+
+//  @LastModifiedBy
+//  private String updatedBy;
 }

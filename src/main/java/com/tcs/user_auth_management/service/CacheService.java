@@ -1,9 +1,10 @@
 package com.tcs.user_auth_management.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tcs.user_auth_management.model.entity.CacheStore;
 import com.tcs.user_auth_management.repository.CacheStoreRepository;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -20,14 +21,33 @@ public class CacheService {
   private final ObjectMapper objectMapper;
 
   public void put(String key, Map<String, Object> value, long ttlSecond) {
-    repository.save(new CacheStore(key, value, ttlSecond));
+    repository.insertOrUpdateCache(key, convertToString(value), Instant.now().plusSeconds(ttlSecond));
   }
 
   public <T> Optional<T> get(String key, Class<T> type) {
-    return repository
-        .findById("username:string")
-        .map(CacheStore::getCacheValue)
-        .map(value -> objectMapper.convertValue(value, type));
+    var json = repository.getValidCacheValue(key);
+    json.ifPresent(value -> {
+      log.info("Cache Data: {}", value);
+    });
+    if (json.isEmpty()) {
+      log.info("Cache Data not found");
+      return Optional.empty();
+    }
+    try {
+      // 2. Convert the JSON string back to your Class (e.g., UserAuth)
+      return Optional.of(objectMapper.readValue(json.get(), type));
+    } catch (JsonProcessingException e) {
+      log.error("Failed to deserialize cache for key: {}", key, e);
+      return Optional.empty();
+    }
+  }
+  public <T> T getCachedOrFetch(String key, Class<T> type, Supplier<T> dbFetch) {
+    return this.get(key, type)
+            .orElseGet(() -> {
+              T value = dbFetch.get();
+              this.put(key, value);
+              return value;
+            });
   }
 
   public <T> Optional<T> get(String key, Class<T> type, Supplier<T> callback) {
@@ -51,17 +71,7 @@ public class CacheService {
   }
 
   public void put(String key, Object value) {
-    repository.save(
-        new CacheStore(
-            key,
-            objectMapper.convertValue(value, new TypeReference<Map<String, Object>>() {}),
-            60));
-  }
-
-  public void putNoExpired(String key, Object value) {
-    repository.save(
-        new CacheStore(
-            key, objectMapper.convertValue(value, new TypeReference<Map<String, Object>>() {}), 0));
+    repository.insertOrUpdateCache(key, convertToString(value), Instant.now().plusSeconds(60));
   }
 
   public void del(String key) {
@@ -69,6 +79,16 @@ public class CacheService {
   }
 
   public void dels(Set<String> keys) {
-    repository.deleteAllByIdInBatch(keys);
+    repository.deleteByCacheKeys(keys);
+  }
+
+  public String convertToString(Object value) {
+    try {
+      // This adds the necessary quotes and formatting for JSON
+      return objectMapper.writeValueAsString(value);
+
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException("Failed to serialize cache value", e);
+    }
   }
 }

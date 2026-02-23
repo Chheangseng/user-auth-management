@@ -1,6 +1,5 @@
 package com.tcs.user_auth_management.service;
 
-import com.tcs.user_auth_management.emuns.Role;
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
 import com.tcs.user_auth_management.model.dto.DtoJwtTokenResponse;
 import com.tcs.user_auth_management.model.dto.DtoUserRequestInfo;
@@ -50,7 +49,6 @@ public class AuthService {
   public DtoJwtTokenResponse registerAccount(DtoUserRegister register) {
     validateUserDuplication(register);
     UserAuth userAuth = userAuthMapper.toEntity(register, passwordEncoder);
-    userAuth.addRole(Role.USER);
     repository.save(userAuth);
     return tokenService.generateToken(this.authenticationUser(userAuth));
   }
@@ -116,11 +114,11 @@ public class AuthService {
     var user = this.isUserActive(login.username());
     DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
     if (!passwordEncoder.matches(login.password(), user.getPassword())) {
-      activityService.asyncLoginFail(requestInfo, user.getId());
+      activityService.asyncLoginFail(requestInfo, user.getId().toString());
       throw new ApiExceptionStatusException(
           "Invalid username or password.", HttpStatus.UNAUTHORIZED.value());
     }
-    activityService.asyncLoginSuccess(requestInfo, user.getId());
+    activityService.asyncLoginSuccess(requestInfo, user.getId().toString());
     return user;
   }
 
@@ -134,12 +132,10 @@ public class AuthService {
   }
 
   public UserAuth findByUsername(String username) {
-    return cacheService
-        .get("username:" + username, UserAuth.class)
-        .orElseThrow(
-            () ->
-                new ApiExceptionStatusException(
-                    "Invalid username", HttpStatus.UNAUTHORIZED.value()));
+    return cacheService.getCachedOrFetch("username:" + username, UserAuth.class, () ->
+            repository.findByUsername(username)
+                    .orElseThrow(() -> new ApiExceptionStatusException("Invalid username", 401))
+    );
   }
 
   private Authentication authenticationUser(UserAuth user) {
