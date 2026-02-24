@@ -1,8 +1,8 @@
 package com.tcs.user_auth_management.service;
 
+import com.tcs.user_auth_management.emuns.AuditLogEvent;
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
 import com.tcs.user_auth_management.model.dto.DtoJwtTokenResponse;
-import com.tcs.user_auth_management.model.dto.DtoUserRequestInfo;
 import com.tcs.user_auth_management.model.dto.user.DtoResetPassword;
 import com.tcs.user_auth_management.model.dto.user.DtoUserLogin;
 import com.tcs.user_auth_management.model.dto.user.DtoUserRegister;
@@ -10,8 +10,8 @@ import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import com.tcs.user_auth_management.model.entity.user.UserSecurity;
 import com.tcs.user_auth_management.model.mapper.UserAuthMapper;
 import com.tcs.user_auth_management.repository.UserAuthRepository;
-import com.tcs.user_auth_management.service.user.UserActivityService;
 import com.tcs.user_auth_management.service.user.UserRequestInfoService;
+import com.tcs.user_auth_management.service.user.UserSessionService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -34,15 +34,15 @@ public class AuthService {
   private final TokenJwtService tokenService;
   private final MailService mailService;
   private final UserAuthMapper userAuthMapper;
-  private final UserActivityService activityService;
-  private final RefreshTokenSessionService refreshTokenSessionService;
+  private final AuditLogService auditLogService;
+  private final UserSessionService userSessionService;
   private final HttpServletRequest request;
   private final Executor executor;
   private final CacheService cacheService;
 
   public DtoJwtTokenResponse loginUser(DtoUserLogin login) {
     var user = this.authenticationUsernameAndPassword(login);
-    return tokenService.generateToken(this.authenticationUser(user));
+    return tokenService.generateTokenJwt(this.authenticationUser(user));
   }
 
   @Transactional
@@ -50,31 +50,31 @@ public class AuthService {
     validateUserDuplication(register);
     UserAuth userAuth = userAuthMapper.toEntity(register, passwordEncoder);
     repository.save(userAuth);
-    return tokenService.generateToken(this.authenticationUser(userAuth));
+    auditLogService.auditEvent(
+        AuditLogEvent.USER_REGISTRATION, requestInfoService.userRequestInfo(request));
+    return tokenService.generateTokenJwt(this.authenticationUser(userAuth));
   }
 
   public void logout(String refreshToken) {
     auditLogoutUserAccount(refreshToken);
-    CompletableFuture.runAsync(
-        () -> refreshTokenSessionService.invokeToken(refreshToken), executor);
+    CompletableFuture.runAsync(() -> userSessionService.invokeToken(refreshToken), executor);
   }
 
   public void logoutAll(String refreshToken) {
     auditLogoutUserAccount(refreshToken);
-    CompletableFuture.runAsync(
-        () -> refreshTokenSessionService.invokeAllToken(refreshToken), executor);
+    CompletableFuture.runAsync(() -> userSessionService.invokeAllToken(refreshToken), executor);
   }
 
   private void auditLogoutUserAccount(String refreshToken) {
     Jwt jwt = tokenService.verifyRefreshToken(refreshToken);
-    UserAuth userAuth = isUserActive(jwt.getSubject());
-    DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
-    activityService.asyncLogout(requestInfo, userAuth);
+    UserAuth userAuth = checkUserActiveById(jwt.getSubject());
+    auditLogService.auditEvent(
+        userAuth.getId(), AuditLogEvent.LOGOUT, requestInfoService.userRequestInfo(request));
   }
 
   public void resetUserPassword(DtoResetPassword resetPassword) {
     Jwt jwt = tokenService.verifyResetPasswordToken(resetPassword.resetToken());
-    UserAuth userAuth = isUserActive(jwt.getSubject());
+    UserAuth userAuth = checkUserActiveById(jwt.getSubject());
     userAuth.setPassword(passwordEncoder.encode(resetPassword.newPassword()));
     userAuth.setEmailVerified(true);
     repository.save(userAuth);
@@ -89,7 +89,7 @@ public class AuthService {
 
   public void sendVerifyEmailToken(String token) {
     Jwt jwt = tokenService.verifyToken(token);
-    UserAuth userAuth = isUserActive(jwt.getSubject());
+    UserAuth userAuth = checkUserActiveById(jwt.getSubject());
     mailService.asyncSendEmailVerify(
         userAuth.getUsername(),
         userAuth.getEmail(),
@@ -98,8 +98,8 @@ public class AuthService {
 
   public DtoJwtTokenResponse refreshToken(String refreshToken) {
     Jwt jwt = tokenService.verifyRefreshToken(refreshToken);
-    UserAuth userAuth = isUserActive(jwt.getSubject());
-    return tokenService.refreshToken(this.authenticationUser(userAuth), jwt);
+    UserAuth userAuth = checkUserActiveById(jwt.getSubject());
+    return tokenService.generateTokenJwt(this.authenticationUser(userAuth), jwt);
   }
 
   public void forgotPassword(String email) {
@@ -111,19 +111,33 @@ public class AuthService {
   }
 
   public UserAuth authenticationUsernameAndPassword(DtoUserLogin login) {
-    var user = this.isUserActive(login.username());
-    DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
+    var user = this.checkUserActiveByUsername(login.username());
     if (!passwordEncoder.matches(login.password(), user.getPassword())) {
-      activityService.asyncLoginFail(requestInfo, user.getId().toString());
+      auditLogService.auditEvent(
+          user.getId(), AuditLogEvent.LOGIN_FAILURE, requestInfoService.userRequestInfo(request));
       throw new ApiExceptionStatusException(
           "Invalid username or password.", HttpStatus.UNAUTHORIZED.value());
     }
-    activityService.asyncLoginSuccess(requestInfo, user.getId().toString());
+    auditLogService.auditEvent(
+        user.getId(), AuditLogEvent.LOGIN_SUCCESS, requestInfoService.userRequestInfo(request));
     return user;
   }
 
-  public UserAuth isUserActive(String username) {
-    var user = findByUsername(username);
+  public UserAuth checkUserActiveByUsername(String username) {
+    var user = this.findByUsername(username);
+    if (!user.isActivate()) {
+      throw new ApiExceptionStatusException(
+              "Your account have been locked.", HttpStatus.UNAUTHORIZED.value());
+    }
+    return user;
+  }
+
+  public UserAuth checkUserActiveById(String userId) {
+    var user =
+        repository
+            .findById(userId)
+            .orElseThrow(
+                () -> new ApiExceptionStatusException("User not found", HttpStatus.NOT_FOUND));
     if (!user.isActivate()) {
       throw new ApiExceptionStatusException(
           "Your account have been locked.", HttpStatus.UNAUTHORIZED.value());
@@ -132,10 +146,14 @@ public class AuthService {
   }
 
   public UserAuth findByUsername(String username) {
-    return cacheService.getCachedOrFetch("username:" + username, UserAuth.class, () ->
-            repository.findByUsername(username)
-                    .orElseThrow(() -> new ApiExceptionStatusException("Invalid username", 401))
-    );
+    return cacheService.getCachedOrFetch(
+        "username:" + username,
+        UserAuth.class,
+        () ->
+            repository
+                .findByUsername(username)
+                .orElseThrow(
+                    () -> new ApiExceptionStatusException("Invalid username: " + username, 401)));
   }
 
   private Authentication authenticationUser(UserAuth user) {
@@ -143,8 +161,6 @@ public class AuthService {
   }
 
   private void validateUserDuplication(DtoUserRegister register) {
-    // Run both checks concurrently
-
     CompletableFuture<Boolean> usernameExistsFuture =
         CompletableFuture.supplyAsync(
             () -> repository.existsByUsername(register.username()), executor);

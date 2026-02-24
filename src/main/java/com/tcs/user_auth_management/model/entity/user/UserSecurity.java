@@ -5,11 +5,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -54,19 +53,7 @@ public record UserSecurity(UserAuth userAccount) implements UserDetails {
     return this.userAccount.getId();
   }
 
-  public static Optional<UserSecurity> getUserSecurityContext() {
-    return UserSecurity.getUserSecurityByAuthentication(
-        SecurityContextHolder.getContext().getAuthentication());
-  }
-
-  public static Optional<UserSecurity> getUserSecurityByAuthentication(
-      Authentication authentication) {
-    if (authentication != null && authentication.getPrincipal() instanceof UserSecurity) {
-      return Optional.of((UserSecurity) authentication.getPrincipal());
-    }
-    return Optional.empty(); // or throw exception if required
-  }
-  public static Optional<UserSecurity> getUserSecurity(){
+  public static Optional<UserSecurity> getUserSecurity() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     if (authentication != null && authentication.getPrincipal() instanceof UserSecurity) {
       return Optional.of((UserSecurity) authentication.getPrincipal());
@@ -74,11 +61,29 @@ public record UserSecurity(UserAuth userAccount) implements UserDetails {
     return Optional.empty();
   }
 
-  public static UserSecurity userSecurityByAuthentication(Authentication authentication) {
+  public static Optional<UserSecurity> getUserSecurity(Authentication authentication) {
     if (authentication != null && authentication.getPrincipal() instanceof UserSecurity) {
-      return (UserSecurity) authentication.getPrincipal();
+      return Optional.of((UserSecurity) authentication.getPrincipal());
     }
-    throw new ApiExceptionStatusException("Java Typing model user security error", 500);
+    return Optional.empty();
+  }
+
+  public static UserSecurity userSecurityInfo() {
+    return UserSecurity.getUserSecurity()
+        .orElseThrow(
+            () ->
+                new ApiExceptionStatusException(
+                    "Fail to get user authentication context information",
+                    HttpStatus.INTERNAL_SERVER_ERROR));
+  }
+
+  public static UserSecurity userSecurityInfo(Authentication authentication) {
+    return UserSecurity.getUserSecurity(authentication)
+        .orElseThrow(
+            () ->
+                new ApiExceptionStatusException(
+                    "Fail to get user authentication context information",
+                    HttpStatus.INTERNAL_SERVER_ERROR));
   }
 
   public static Authentication getAuthenticationByUserAuth(UserAuth userAuth) {

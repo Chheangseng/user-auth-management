@@ -4,6 +4,7 @@ import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.exception.GeoIp2Exception;
 import com.maxmind.geoip2.model.CityResponse;
 import com.tcs.user_auth_management.model.dto.DtoUserRequestInfo;
+import com.tcs.user_auth_management.util.ClientRequestUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -20,9 +21,10 @@ public class UserRequestInfoService {
   private final DatabaseReader databaseReader;
 
   public DtoUserRequestInfo userRequestInfo(HttpServletRequest httpServletRequest) {
-    DtoUserRequestInfo info = new DtoUserRequestInfo(httpServletRequest);
-    getLocationInfo(info.getIp()).ifPresent(info::setLocationInfo);
-    return info;
+    var location = getLocationInfo(ClientRequestUtil.getClientIp(httpServletRequest));
+    return location
+        .map(cityResponse -> new DtoUserRequestInfo(httpServletRequest, cityResponse))
+        .orElseGet(() -> new DtoUserRequestInfo(httpServletRequest));
   }
 
   public Optional<CityResponse> getLocationInfo(String ip) {
