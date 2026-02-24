@@ -53,8 +53,8 @@ public class LambdaInsertWrapper<T> {
     Map<String,Object> rawParam = baseParam();
     MapSqlParameterSource params = new MapSqlParameterSource();
     rawParam.forEach((key, value) -> {
-      if (value instanceof Instant) {
-        params.addValue(key, value, Types.TIMESTAMP);
+      if (value instanceof Instant instant) {
+        params.addValue(key, java.sql.Timestamp.from(instant));
       } else {
         params.addValue(key, value);
       }
