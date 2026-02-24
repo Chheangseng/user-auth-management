@@ -25,10 +25,19 @@ public class CacheService {
 
   public <T> Optional<T> get(String key, Class<T> type) {
     return repository
-        .findById("username:string")
+        .findById(key)
         .map(CacheStore::getCacheValue)
         .map(value -> objectMapper.convertValue(value, type));
   }
+
+  public <T> T getOrFetch(String key, Class<T> type, Supplier<T> callback) {
+    var result =  repository
+            .findById(key)
+            .map(CacheStore::getCacheValue)
+            .map(value -> objectMapper.convertValue(value, type));
+      return result.orElseGet(callback);
+  }
+
 
   public <T> Optional<T> get(String key, Class<T> type, Supplier<T> callback) {
     Optional<T> cached = this.get(key, type);

@@ -12,9 +12,9 @@ spring:
   application:
     name: user-auth-management
   datasource:
-    url: ${DATABASE_URL}
-    username: ${DATABASE_USERNAME}
-    password: ${DATABASE_PASSWORD}
+    url: ${DATABASE_URL:MISSING_URL_ERROR}
+    username: ${DATABASE_USERNAME:MISSING_USER_ERROR}
+    password: ${DATABASE_PASSWORD:MISSING_PASS_ERROR}
     driver-class-name: org.postgresql.Driver
     hikari:
       minimum-idle: 5        # Minimum number of idle connections to keep in the pool
@@ -34,7 +34,7 @@ spring:
         generate_statistics: true
         #value for using mySql = org.hibernate.dialect.MySQLDialect
         #value for using postgres  = org.hibernate.dialect.PostgreSQLDialect
-        dialect: ${DATABASE_TYPE}
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
         show_sql: true
         connection:
@@ -66,3 +66,8 @@ mail-config-properties:
   mail-host: ${MAIL_SENDER}
   mail-secret: ${MAIL_PASSWORD}
 
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

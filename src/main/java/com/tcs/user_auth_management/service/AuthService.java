@@ -134,12 +134,16 @@ public class AuthService {
   }
 
   public UserAuth findByUsername(String username) {
-    return cacheService
-        .get("username:" + username, UserAuth.class)
-        .orElseThrow(
-            () ->
-                new ApiExceptionStatusException(
-                    "Invalid username", HttpStatus.UNAUTHORIZED.value()));
+    return cacheService.getOrFetch(
+        "username:" + username,
+        UserAuth.class,
+        () ->
+            this.repository
+                .findByUsername(username)
+                .orElseThrow(
+                    () ->
+                        new ApiExceptionStatusException(
+                            "Invalid username", HttpStatus.UNAUTHORIZED.value())));
   }
 
   private Authentication authenticationUser(UserAuth user) {
