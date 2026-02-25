@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -26,24 +27,27 @@ public class UserActivityService {
   private final UserAuthRepository authRepository;
 
   @Async
-  public void asyncLoginSuccess(DtoUserRequestInfo request, String authId) {
-    try{
+  public void asyncLoginSuccess(DtoUserRequestInfo request, UUID authId) {
+    if (Thread.currentThread().isVirtual()) {
+      log.info("Running on virtual thread");
+    } else {
+      log.info("Running on platform thread");
+    }
+    try {
       authRepository
-              .findById(authId)
-              .ifPresent(
-                      userAuth -> saveAudit(request, userAuth, AuthenticationStatus.SUCCESS, true));
+          .findById(authId)
+          .ifPresent(userAuth -> saveAudit(request, userAuth, AuthenticationStatus.SUCCESS, true));
     } catch (Exception e) {
       log.warn("Fail to save Audit logging for authId={}", authId, e);
     }
   }
 
   @Async
-  public void asyncLoginFail(DtoUserRequestInfo request, String authId) {
-    try{
+  public void asyncLoginFail(DtoUserRequestInfo request, UUID authId) {
+    try {
       authRepository
-              .findById(authId)
-              .ifPresent(
-                      userAuth -> saveAudit(request, userAuth, AuthenticationStatus.FAILURE, true));
+          .findById(authId)
+          .ifPresent(userAuth -> saveAudit(request, userAuth, AuthenticationStatus.FAILURE, true));
     } catch (Exception e) {
       log.warn("Fail to save Audit logging for authId={}", authId, e);
     }
@@ -55,7 +59,7 @@ public class UserActivityService {
   }
 
   private void saveAudit(
-          DtoUserRequestInfo request, UserAuth userAuth, AuthenticationStatus status, boolean isLogin) {
+      DtoUserRequestInfo request, UserAuth userAuth, AuthenticationStatus status, boolean isLogin) {
     LoginAudit audit = mapper.toEntity(request);
     audit.setUserAuth(userAuth);
     audit.setStatus(status);
@@ -85,6 +89,13 @@ public class UserActivityService {
     // New location
     if (!Objects.equals(current.getCountryCode(), previous.getCountryCode())) {
       risk += 20;
+    }
+    if (current.getLoginTime() == null) {
+      return 0;
+    }
+
+    if (previous.getLoginTime() == null) {
+      return 0;
     }
 
     // Impossible travel (distance & time)

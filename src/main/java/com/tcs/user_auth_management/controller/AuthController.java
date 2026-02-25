@@ -17,7 +17,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@RequestMapping("/api/auth")
+@RequestMapping("/api/public/auth")
 @AllArgsConstructor
 @RestController
 @Tag(name = "Authentication", description = "APIs for user authentication and authorization")
@@ -107,30 +107,6 @@ public class AuthController {
   public ResponseEntity<Void> resetUserPassword(
           @Valid @RequestBody DtoResetPassword resetPassword) {
     authService.resetUserPassword(resetPassword);
-    return ResponseEntity.ok().build();
-  }
-
-  @PostMapping("/send-verify-email")
-  @Operation(summary = "Send verification email",
-          description = "Send an email with a verification link/token.")
-  @ApiResponses({
-          @ApiResponse(responseCode = "200", description = "Verification email sent"),
-          @ApiResponse(responseCode = "404", description = "User not found")
-  })
-  public ResponseEntity<Void> sendVerifyEmail(@RequestParam String token) {
-    authService.sendVerifyEmailToken(token);
-    return ResponseEntity.ok().build();
-  }
-
-  @PostMapping("/verify-email")
-  @Operation(summary = "Verify user email",
-          description = "Verify a user's email address using verification token.")
-  @ApiResponses({
-          @ApiResponse(responseCode = "200", description = "Email verified"),
-          @ApiResponse(responseCode = "400", description = "Invalid or expired token")
-  })
-  public ResponseEntity<Void> verifyEmail(@RequestParam String token) {
-    authService.verifyUserEmail(token);
     return ResponseEntity.ok().build();
   }
 }

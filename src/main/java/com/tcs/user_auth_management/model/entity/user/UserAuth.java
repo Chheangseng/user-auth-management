@@ -1,33 +1,29 @@
 package com.tcs.user_auth_management.model.entity.user;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.tcs.user_auth_management.emuns.Role;
 import com.tcs.user_auth_management.model.entity.LoginAudit;
-import com.tcs.user_auth_management.model.entity.RefreshToken;
+import com.tcs.user_auth_management.model.entity.UserSession;
+import com.tcs.user_auth_management.model.entity.common.BaseEntityUUID;
 import jakarta.persistence.*;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
-import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
 @Entity
 @Table(
     name = "user_auth",
     indexes = {@Index(name = "idx_userauth_username", columnList = "username")})
-public class UserAuth {
-
-  @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
-  private String id;
-
+public class UserAuth extends BaseEntityUUID {
   @Column(unique = true, nullable = false)
   private String username;
 
   @Column(nullable = false)
   private String password;
-
-  private String fullName;
 
   @Column(unique = true, nullable = false)
   private String email;
@@ -47,33 +43,20 @@ public class UserAuth {
   @OneToMany(
       fetch = FetchType.LAZY,
       cascade = {CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH},
-      mappedBy = "userAuth")
-  @JsonIgnore
+      mappedBy = "userAuth",
+      orphanRemoval = true)
   private Set<LoginAudit> loginAudits = new HashSet<>();
 
   @OneToMany(
       fetch = FetchType.LAZY,
       cascade = {CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH},
-      mappedBy = "userAuth")
-  @JsonIgnore
-  private Set<RefreshToken> refreshTokens = new HashSet<>();
+      mappedBy = "userAuth",
+      orphanRemoval = true)
+  private Set<UserSession> userSessions = new HashSet<>();
 
   public void addRole(Role role) {
     if (roles != null) {
       roles.add(role);
     }
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (!(o instanceof UserAuth that)) return false;
-    return Objects.equals(id, that.id);
-  }
-
-
-  @Override
-  public int hashCode() {
-    return id != null ? id.hashCode() : super.hashCode();
   }
 }

@@ -2,12 +2,14 @@ package com.tcs.user_auth_management.service;
 
 import com.tcs.user_auth_management.emuns.JwtTokenType;
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
+import com.tcs.user_auth_management.model.dto.DtoJwtPayload;
 import com.tcs.user_auth_management.model.dto.DtoJwtTokenResponse;
+import com.tcs.user_auth_management.model.entity.UserSession;
+import com.tcs.user_auth_management.model.entity.user.UserAuth;
+import com.tcs.user_auth_management.model.entity.user.UserSecurity;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.*;
@@ -19,37 +21,54 @@ public class TokenJwtService {
   private final String issuer = "authentication-server";
   private final JwtEncoder encoder;
   private final JwtDecoder decoder;
-  private final RefreshTokenSessionService refreshTokenSessionService;
+  private final UserSessionService userSessionService;
   // 3 min
   private final long expireInSeconds = 120;
+  private final long expireInSecondsRefresh = 60 * 30;
 
-  public DtoJwtTokenResponse generateToken(Authentication authentication) {
+  public DtoJwtTokenResponse generateToken(UserAuth userAuth) {
     Instant now = Instant.now();
-    return new DtoJwtTokenResponse(
-        accessToken(authentication, now),
-        expireInSeconds,
-        refreshTokenSessionService.generateRefreshTokenSession(authentication, now),
-        RefreshTokenSessionService.refreshTokenExpireInSeconds);
+    UserSession session = userSessionService.createNewSession(userAuth, now);
+    return buildTokenResponse(userAuth, session, now);
   }
 
-  public DtoJwtTokenResponse refreshToken(Authentication authentication, Jwt jwt) {
+  public DtoJwtTokenResponse generateToken(UserAuth userAuth, Jwt jwt) {
     Instant now = Instant.now();
-    return new DtoJwtTokenResponse(
-        accessToken(authentication, now),
-        expireInSeconds,
-        refreshTokenSessionService.refreshTokenWithOldSession(authentication, jwt, now),
-        RefreshTokenSessionService.refreshTokenExpireInSeconds);
+    UserSession session =
+        userSessionService.updateSessionExpiredTime(new DtoJwtPayload(jwt).getSessionId(), now);
+    return buildTokenResponse(userAuth, session, now);
   }
 
-  private String accessToken(Authentication authentication, Instant now) {
+  private DtoJwtTokenResponse buildTokenResponse(
+          UserAuth userAuth, UserSession session, Instant now) {
+    return new DtoJwtTokenResponse(
+        accessToken(userAuth, session.getId().toString(), now),
+        expireInSeconds,
+        refreshToken(userAuth, session.getId().toString(), now),
+        expireInSecondsRefresh);
+  }
+
+  private String refreshToken(UserAuth userAuth, String sessionId, Instant now) {
     JwtClaimsSet claims =
         JwtClaimsSet.builder()
+            .id(sessionId)
+            .issuer(issuer)
+            .issuedAt(now)
+            .expiresAt(now.plusSeconds(expireInSecondsRefresh))
+            .subject(userAuth.getId().toString())
+            .claim("type", JwtTokenType.REFRESH.getType())
+            .build();
+    return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
+  }
+
+  private String accessToken(UserAuth userAuth, String sessionId, Instant now) {
+    JwtClaimsSet claims =
+        JwtClaimsSet.builder()
+            .id(sessionId)
             .issuer(issuer)
             .issuedAt(now)
             .expiresAt(now.plusSeconds(expireInSeconds))
-            .subject(authentication.getName())
-            .claim("scope", this.getScope(authentication))
-            .claim("roles", this.getRoles(authentication))
+            .subject(userAuth.getId().toString())
             .claim("type", JwtTokenType.ACCESS.getType())
             .build();
     return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
@@ -57,7 +76,6 @@ public class TokenJwtService {
 
   public String resetToken(Authentication authentication) {
     Instant now = Instant.now();
-    //  5 min
     long resetPasswordToken = 300;
     JwtClaimsSet claims =
         JwtClaimsSet.builder()
@@ -69,59 +87,19 @@ public class TokenJwtService {
             .build();
     return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
   }
-  public String generateVerifyEmailToken(Authentication authentication){
-      Instant now = Instant.now();
-      //  5 min
-      long resetPasswordToken = 300;
-      JwtClaimsSet claims =
-              JwtClaimsSet.builder()
-                      .issuer(issuer)
-                      .issuedAt(now)
-                      .expiresAt(now.plusSeconds(resetPasswordToken))
-                      .subject(authentication.getName())
-                      .claim("type", JwtTokenType.VERIFY_EMAIL.getType())
-                      .build();
-      return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
-  }
 
-  public List<String> getRoles(Authentication authentication) {
-    return authentication.getAuthorities().stream()
-        .filter(grantedAuthority -> grantedAuthority.getAuthority().startsWith("ROLE_"))
-        .map(auth -> auth.getAuthority().substring(5))
-        .collect(Collectors.toList());
-  }
-
-  public List<String> getScope(Authentication authentication) {
-    return authentication.getAuthorities().stream()
-        .filter(grantedAuthority -> grantedAuthority.getAuthority().startsWith("SCOPE_"))
-        .map(auth -> auth.getAuthority().substring(6))
-        .collect(Collectors.toList());
-  }
-
-  public Jwt verifyResetPasswordToken(String resetToken) {
-      var decode = verifyToken(resetToken);
-      var type = validateType(decode);
-      if (type != JwtTokenType.RESET_PASSWORD) {
-        throw new ApiExceptionStatusException("Incorrect Token Type or format", 401);
-      }
-      return decode;
-  }
-
-  public Jwt verifyEmailToken(String token) {
-      var decode = verifyToken(token);
-      var type = validateType(decode);
-      if (type != JwtTokenType.VERIFY_EMAIL) {
-          throw new ApiExceptionStatusException("Incorrect Token Type or format", 401);
-      }
-      return decode;
-  }
-
-  public Jwt verifyToken(String token) {
-    try {
-      return decoder.decode(token);
-    } catch (JwtException e) {
-      throw new ApiExceptionStatusException(e.getMessage(), 400, e);
-    }
+  public String generateVerifyEmailToken(Authentication authentication) {
+    Instant now = Instant.now();
+    long resetPasswordToken = 300;
+    JwtClaimsSet claims =
+        JwtClaimsSet.builder()
+            .issuer(issuer)
+            .issuedAt(now)
+            .expiresAt(now.plusSeconds(resetPasswordToken))
+            .subject(authentication.getName())
+            .claim("type", JwtTokenType.VERIFY_EMAIL.getType())
+            .build();
+    return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
   }
 
   private JwtTokenType validateType(Jwt jwt) {
@@ -148,12 +126,53 @@ public class TokenJwtService {
           "scope",
           jwt.getClaimAsString("scope"));
     } catch (JwtException e) {
-      // Token invalid or expired
       return Map.of("active", false);
     }
   }
 
   public Jwt verifyRefreshToken(String refreshToken) {
-    return refreshTokenSessionService.verifyRefreshToken(refreshToken);
+    try {
+      var decode = decoder.decode(refreshToken);
+      var type = validateType(decode);
+      if (type != JwtTokenType.REFRESH) {
+        throw new ApiExceptionStatusException("Incorrect Token Type or format", 400);
+      }
+      return decode;
+    } catch (JwtException e) {
+      throw new ApiExceptionStatusException(e.getMessage(), 400, e);
+    }
+  }
+
+  public DtoJwtPayload verifyTokenPayload(String token, JwtTokenType jwtTokenType) {
+    try {
+      var decode = decoder.decode(token);
+      var type = validateType(decode);
+      if (type != JwtTokenType.REFRESH) {
+        throw new ApiExceptionStatusException("Incorrect Token Type or format", 400);
+      }
+      return new DtoJwtPayload(decode);
+    } catch (JwtException e) {
+      throw new ApiExceptionStatusException(e.getMessage(), 400, e);
+    }
+  }
+
+  public DtoJwtPayload verifyTokenPayload(String token) {
+    try {
+      var decode = decoder.decode(token);
+      validateType(decode);
+      return new DtoJwtPayload(decode);
+    } catch (JwtException e) {
+      throw new ApiExceptionStatusException(e.getMessage(), 400, e);
+    }
+  }
+
+  public Jwt verifyToken(String token) {
+    try {
+      var decode = decoder.decode(token);
+      validateType(decode);
+      return decode;
+    } catch (JwtException e) {
+      throw new ApiExceptionStatusException(e.getMessage(), 400, e);
+    }
   }
 }

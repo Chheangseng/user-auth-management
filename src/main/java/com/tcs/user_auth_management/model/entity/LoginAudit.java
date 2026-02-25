@@ -1,21 +1,21 @@
 package com.tcs.user_auth_management.model.entity;
 
 import com.tcs.user_auth_management.emuns.AuthenticationStatus;
+import com.tcs.user_auth_management.model.entity.common.BaseEntity;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.Objects;
-import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 
 @Entity
-@Table(name = "login_audit")
-@Data
-public class LoginAudit {
-
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+@Table(name = "login_audits")
+@Getter
+@Setter
+@NoArgsConstructor
+public class LoginAudit extends BaseEntity {
 
   // Reference to the user who logged in
   @ManyToOne(fetch = FetchType.LAZY)
@@ -52,17 +52,4 @@ public class LoginAudit {
   private double longitude = 0.0;
 
   private String timeZone;
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (!(o instanceof LoginAudit that)) return false;
-    return Objects.equals(id, that.id);
-  }
-
-
-  @Override
-  public int hashCode() {
-    return id != null ? id.hashCode() : super.hashCode();
-  }
 }

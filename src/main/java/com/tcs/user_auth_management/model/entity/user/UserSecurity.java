@@ -2,7 +2,13 @@ package com.tcs.user_auth_management.model.entity.user;
 
 import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
+
+import com.tcs.user_auth_management.emuns.Role;
+import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,6 +23,18 @@ public record UserSecurity(UserAuth userAccount) implements UserDetails {
     return this.userAccount.getRoles().stream()
         .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getValue().toUpperCase()))
         .collect(Collectors.toSet());
+  }
+
+  public Set<String> getRoles() {
+    return this.userAccount.getRoles().stream().map(Role::getValue).collect(Collectors.toSet());
+  }
+
+  public UUID getUserId() {
+    return this.userAccount.getId();
+  }
+
+  public UserAuth getUserAuth() {
+    return this.userAccount;
   }
 
   @Override
@@ -52,6 +70,13 @@ public record UserSecurity(UserAuth userAccount) implements UserDetails {
   public static Optional<UserSecurity> getUserSecurityContext() {
     return UserSecurity.getUserSecurityBYAuthentication(
         SecurityContextHolder.getContext().getAuthentication());
+  }
+  public static UserSecurity userSecurityContext() {
+    var user = UserSecurity.getUserSecurityContext();
+    if(user.isEmpty()){
+      throw new ApiExceptionStatusException("Invalid user", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    return user.get();
   }
 
   public static Optional<UserSecurity> getUserSecurityBYAuthentication(
