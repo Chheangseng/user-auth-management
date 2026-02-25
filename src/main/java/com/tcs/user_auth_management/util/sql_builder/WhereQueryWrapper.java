@@ -5,12 +5,11 @@ import java.util.List;
 
 import com.tcs.user_auth_management.util.Util;
 import lombok.Getter;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 public class WhereQueryWrapper<T> {
   private final List<String> conditions = new ArrayList<>();
-  @Getter private final MapSqlParameterSource params = new MapSqlParameterSource();
-  private int paramCounter = 0;
+  private final String prefixWhere = "wh_";
+  @Getter private final SqlParam<T> whereParams = new SqlParam<T>(prefixWhere);
 
   public WhereQueryWrapper<T> eq(SFunction<T, ?> column, Object value) {
     return addCondition(column, "=", value);
@@ -45,10 +44,8 @@ public class WhereQueryWrapper<T> {
     if (value != null) {
       String fieldName = LambdaUtils.getPropertyName(column);
       String columnName = Util.camelToSnake(fieldName);
-      String paramName = "where_" + fieldName + "_" + (paramCounter++);
-
-      conditions.add(columnName + " " + operator + " :" + paramName);
-      params.addValue(paramName, value);
+      String keyParam = whereParams.add(column,value);
+      conditions.add(columnName + " " + operator + " :" + keyParam);
     }
     return this;
   }
@@ -56,7 +53,6 @@ public class WhereQueryWrapper<T> {
   private WhereQueryWrapper<T> addNoValueCondition(SFunction<T, ?> column, String operator) {
     String fieldName = LambdaUtils.getPropertyName(column);
     String columnName = Util.camelToSnake(fieldName);
-
     conditions.add(columnName + " " + operator);
     return this;
   }

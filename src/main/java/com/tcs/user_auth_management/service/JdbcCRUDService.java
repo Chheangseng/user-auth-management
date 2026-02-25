@@ -22,8 +22,27 @@ public class JdbcCRUDService {
     String sql = wrapper.buildSql(mappingContext);
     return namedJdbc.update(sql, wrapper.buildParm());
   }
+  public int execute(LambdaUpdateWrapper<?> wrapper) {
+    String sql = wrapper.buildSql(mappingContext);
+    return namedJdbc.update(sql, wrapper.buildParm());
+  }
 
   public <T> T executeAndGetId(LambdaInsertWrapper<?> wrapper, String idColumnName) {
+    String sql = wrapper.buildSql(mappingContext);
+    KeyHolder keyHolder = new GeneratedKeyHolder();
+
+    // Execute with the specific column name provided by the user
+    namedJdbc.update(sql, wrapper.buildParm(), keyHolder, new String[] {idColumnName});
+
+    Map<String, Object> keys = keyHolder.getKeys();
+
+    if (keys != null && keys.containsKey(idColumnName)) {
+      // Automatically casts to whatever type the user assigned it to
+      return (T) keys.get(idColumnName);
+    }
+    return null;
+  }
+  public <T> T executeAndGetId(LambdaUpdateWrapper<?> wrapper, String idColumnName) {
     String sql = wrapper.buildSql(mappingContext);
     KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -43,7 +62,7 @@ public class JdbcCRUDService {
     return this.executeAndGetId(wrapper, "id");
   }
 
-  public int execute(LambdaUpdateWrapper<?> wrapper) {
-    return jdbcTemplate.update(wrapper.buildSql(mappingContext), wrapper.getParams());
+  public <T> T executeAndGetId(LambdaUpdateWrapper<?> wrapper) {
+    return this.executeAndGetId(wrapper, "id");
   }
 }

@@ -40,7 +40,6 @@ public class UserSessionService {
       throw new ApiExceptionStatusException("Invalid id: " + sessionId, HttpStatus.NOT_FOUND);
     }
   }
-
   public void invokeToken(String sessionId) {
     if (Objects.isNull(sessionId)) return;
     repository.invokedSessionById(sessionId);
