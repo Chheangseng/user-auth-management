@@ -1,4 +1,4 @@
-package com.tcs.user_auth_management.config;
+package com.tcs.user_auth_management.config.jpa;
 
 import com.tcs.user_auth_management.model.entity.user.UserSecurity;
 import java.util.Optional;

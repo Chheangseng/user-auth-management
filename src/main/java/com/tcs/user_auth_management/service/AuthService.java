@@ -45,7 +45,8 @@ public class AuthService {
   private final Executor executor;
 
   public DtoJwtTokenResponse loginUser(DtoUserLogin login) {
-    var user = this.authenticationUsernameAndPassword(login);
+    DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
+    var user = this.authenticationUsernameAndPassword(login,requestInfo);
     return tokenService.generateToken(user);
   }
 
@@ -123,9 +124,8 @@ public class AuthService {
     mailService.asyncSendForgotPassword(email, userAuth.getUsername(), resetPasswordToken);
   }
 
-  public UserAuth authenticationUsernameAndPassword(DtoUserLogin login) {
+  public UserAuth authenticationUsernameAndPassword(DtoUserLogin login,DtoUserRequestInfo requestInfo) {
     var user = this.isUserActiveByUsername(login.username());
-    DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
     if (!passwordEncoder.matches(login.password(), user.getPassword())) {
       activityService.asyncLoginFail(requestInfo, user.getId());
       throw new ApiExceptionStatusException(
