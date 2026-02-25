@@ -1,7 +1,7 @@
 package com.tcs.user_auth_management.repository;
 
-import com.tcs.user_auth_management.model.entity.UserSession;
-import java.util.List;
+import com.tcs.user_auth_management.model.entity.user.UserSession;
+
 import java.util.Optional;
 import java.util.UUID;
 

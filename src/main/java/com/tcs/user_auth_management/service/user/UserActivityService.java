@@ -1,17 +1,10 @@
 package com.tcs.user_auth_management.service.user;
 
-import com.tcs.user_auth_management.emuns.AuthenticationStatus;
+import com.tcs.user_auth_management.emuns.AuditLogEvent;
 import com.tcs.user_auth_management.model.dto.DtoUserRequestInfo;
-import com.tcs.user_auth_management.model.entity.LoginAudit;
-import com.tcs.user_auth_management.model.entity.user.UserAuth;
-import com.tcs.user_auth_management.model.mapper.LoginAuditMapper;
-import com.tcs.user_auth_management.repository.LoginAuditRepository;
+import com.tcs.user_auth_management.model.entity.AuditLog;
+import com.tcs.user_auth_management.repository.AuditLogRepository;
 import com.tcs.user_auth_management.repository.UserAuthRepository;
-import com.tcs.user_auth_management.util.GeoUtils;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,111 +15,27 @@ import org.springframework.stereotype.Service;
 @AllArgsConstructor
 @Slf4j
 public class UserActivityService {
-  private final LoginAuditRepository repository;
-  private final LoginAuditMapper mapper;
+  private final AuditLogRepository repository;
   private final UserAuthRepository authRepository;
 
   @Async
-  public void asyncLoginSuccess(DtoUserRequestInfo request, UUID authId) {
-    if (Thread.currentThread().isVirtual()) {
-      log.info("Running on virtual thread");
-    } else {
-      log.info("Running on platform thread");
-    }
-    try {
-      authRepository
-          .findById(authId)
-          .ifPresent(userAuth -> saveAudit(request, userAuth, AuthenticationStatus.SUCCESS, true));
-    } catch (Exception e) {
-      log.warn("Fail to save Audit logging for authId={}", authId, e);
-    }
+  public void asyncSaveAudit(DtoUserRequestInfo request, UUID userAuthId, AuditLogEvent event) {
+    AuditLog auditLog = new AuditLog();
+    auditLog.setUserAgent(request.getUserAgent());
+    auditLog.setUserAuth(authRepository.getReferenceById(userAuthId));
+    auditLog.setLocation(request.getLocation());
+    auditLog.setIpAddress(request.getIp());
+    auditLog.setAuditLogEvent(event);
+    repository.save(auditLog);
   }
 
   @Async
-  public void asyncLoginFail(DtoUserRequestInfo request, UUID authId) {
-    try {
-      authRepository
-          .findById(authId)
-          .ifPresent(userAuth -> saveAudit(request, userAuth, AuthenticationStatus.FAILURE, true));
-    } catch (Exception e) {
-      log.warn("Fail to save Audit logging for authId={}", authId, e);
-    }
-  }
-
-  @Async
-  public void asyncLogout(DtoUserRequestInfo request, UserAuth userAuth) {
-    saveAudit(request, userAuth, AuthenticationStatus.SUCCESS, false);
-  }
-
-  private void saveAudit(
-      DtoUserRequestInfo request, UserAuth userAuth, AuthenticationStatus status, boolean isLogin) {
-    LoginAudit audit = mapper.toEntity(request);
-    audit.setUserAuth(userAuth);
-    audit.setStatus(status);
-
-    if (isLogin) {
-      audit.setLoginTime(LocalDateTime.now());
-    } else {
-      audit.setLogoutTime(LocalDateTime.now());
-    }
-    repository.save(audit);
-    validationLoginRisk(userAuth);
-  }
-
-  private void validationLoginRisk(UserAuth userAuth) {
-    List<LoginAudit> loginAudits =
-        repository.findTop2ByUserAuthIdOrderByLoginTimeDesc(userAuth.getId());
-    if (loginAudits.size() == 2) {
-      int risk = calculateRisk(loginAudits.get(0), loginAudits.get(1));
-      userAuth.setRisk(risk);
-      authRepository.save(userAuth);
-    }
-  }
-
-  private int calculateRisk(LoginAudit current, LoginAudit previous) {
-    int risk = 0;
-
-    // New location
-    if (!Objects.equals(current.getCountryCode(), previous.getCountryCode())) {
-      risk += 20;
-    }
-    if (current.getLoginTime() == null) {
-      return 0;
-    }
-
-    if (previous.getLoginTime() == null) {
-      return 0;
-    }
-
-    // Impossible travel (distance & time)
-    double km =
-        GeoUtils.distanceKm(
-            current.getLatitude(), current.getLongitude(),
-            previous.getLatitude(), previous.getLongitude());
-
-    long hours = Duration.between(previous.getLoginTime(), current.getLoginTime()).toHours();
-
-    if (hours > 0 && km / hours > 800) { // >800 km/h ~ impossible travel
-      risk += 30;
-    }
-
-    // New device / user agent
-    if (!Objects.equals(current.getUserAgent(), previous.getUserAgent())) {
-      risk += 25;
-    }
-
-    // Odd login time (e.g., user usually logs in daytime)
-    int hour = current.getLoginTime().getHour();
-
-    if (hour < 6) {
-      risk += 10;
-    }
-
-    // Multiple failures before success
-    if (AuthenticationStatus.FAILURE.equals(current.getStatus())) {
-      risk += 15;
-    }
-
-    return Math.min(risk, 100);
+  public void asyncSaveAudit(DtoUserRequestInfo request, AuditLogEvent event) {
+    AuditLog auditLog = new AuditLog();
+    auditLog.setUserAgent(request.getUserAgent());
+    auditLog.setLocation(request.getLocation());
+    auditLog.setIpAddress(auditLog.getIpAddress());
+    auditLog.setAuditLogEvent(event);
+    repository.save(auditLog);
   }
 }

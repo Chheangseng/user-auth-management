@@ -1,14 +1,16 @@
-package com.tcs.user_auth_management.service;
+package com.tcs.user_auth_management.service.user;
 
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
-import com.tcs.user_auth_management.model.entity.UserSession;
+import com.tcs.user_auth_management.model.dto.DtoUserSession;
+import com.tcs.user_auth_management.model.entity.user.UserSession;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import com.tcs.user_auth_management.repository.UserSessionRepository;
-import com.tcs.user_auth_management.service.user.UserRequestInfoService;
+import com.tcs.user_auth_management.util.pagination.PaginationParam;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +20,11 @@ public class UserSessionService {
   private final UserSessionRepository repository;
   private final HttpServletRequest request;
   private final UserRequestInfoService requestInfoService;
+
+  public Page<DtoUserSession> userSessionPage(PaginationParam pagination) {
+    var response = repository.findAll(pagination.toPageable());
+    return response.map(DtoUserSession::new);
+  }
 
   public UserSession createNewSession(UserAuth userAuth, Instant expireTime) {
     UserSession session = new UserSession();

@@ -1,9 +1,7 @@
-package com.tcs.user_auth_management.model.entity;
+package com.tcs.user_auth_management.model.entity.user;
 
-import com.tcs.user_auth_management.config.jpa.JsonbConverter;
 import com.tcs.user_auth_management.model.dto.DtoLocation;
 import com.tcs.user_auth_management.model.entity.common.BaseEntityUUID;
-import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import jakarta.persistence.*;
 import java.time.Instant;
 import lombok.Getter;
@@ -28,9 +26,11 @@ public class UserSession extends BaseEntityUUID {
   @Column(nullable = false)
   private boolean invoked = false;
 
+  @Column(length = 45, nullable = false)
   private String ipAddress;
 
-  @Column @Lob private String userAgent;
+  @Column(name = "user_agent", columnDefinition = "TEXT")
+  private String userAgent;
 
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(columnDefinition = "jsonb")

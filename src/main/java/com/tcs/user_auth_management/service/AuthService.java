@@ -1,5 +1,6 @@
 package com.tcs.user_auth_management.service;
 
+import com.tcs.user_auth_management.emuns.AuditLogEvent;
 import com.tcs.user_auth_management.emuns.JwtTokenType;
 import com.tcs.user_auth_management.emuns.Role;
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
@@ -83,7 +84,7 @@ public class AuthService {
     Jwt jwt = tokenService.verifyRefreshToken(refreshToken);
     UserAuth userAuth = isUserActive(new DtoJwtPayload(jwt).getUserId());
     DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
-    activityService.asyncLogout(requestInfo, userAuth);
+    activityService.asyncSaveAudit(requestInfo, userAuth.getId(), AuditLogEvent.LOGOUT);
   }
 
   public void resetUserPassword(DtoResetPassword resetPassword) {
@@ -127,11 +128,11 @@ public class AuthService {
   public UserAuth authenticationUsernameAndPassword(DtoUserLogin login,DtoUserRequestInfo requestInfo) {
     var user = this.isUserActiveByUsername(login.username());
     if (!passwordEncoder.matches(login.password(), user.getPassword())) {
-      activityService.asyncLoginFail(requestInfo, user.getId());
+      activityService.asyncSaveAudit(requestInfo, user.getId(), AuditLogEvent.LOGIN_FAILURE);
       throw new ApiExceptionStatusException(
           "Invalid username or password.", HttpStatus.UNAUTHORIZED.value());
     }
-    activityService.asyncLoginSuccess(requestInfo, user.getId());
+    activityService.asyncSaveAudit(requestInfo, user.getId(), AuditLogEvent.LOGOUT);
     return user;
   }
 

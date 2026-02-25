@@ -4,13 +4,14 @@ import com.tcs.user_auth_management.emuns.JwtTokenType;
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
 import com.tcs.user_auth_management.model.dto.DtoJwtPayload;
 import com.tcs.user_auth_management.model.dto.DtoJwtTokenResponse;
-import com.tcs.user_auth_management.model.dto.DtoUserRequestInfo;
-import com.tcs.user_auth_management.model.entity.UserSession;
+import com.tcs.user_auth_management.model.entity.user.UserSession;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
-import com.tcs.user_auth_management.model.entity.user.UserSecurity;
+
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
+
+import com.tcs.user_auth_management.service.user.UserSessionService;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.*;

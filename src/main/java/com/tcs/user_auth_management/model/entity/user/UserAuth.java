@@ -1,8 +1,6 @@
 package com.tcs.user_auth_management.model.entity.user;
 
 import com.tcs.user_auth_management.emuns.Role;
-import com.tcs.user_auth_management.model.entity.LoginAudit;
-import com.tcs.user_auth_management.model.entity.UserSession;
 import com.tcs.user_auth_management.model.entity.common.BaseEntityUUID;
 import jakarta.persistence.*;
 import java.util.HashSet;
@@ -39,13 +37,6 @@ public class UserAuth extends BaseEntityUUID {
 
   @Column(nullable = false, columnDefinition = "int default 0")
   private int risk = 0;
-
-  @OneToMany(
-      fetch = FetchType.LAZY,
-      cascade = {CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH},
-      mappedBy = "userAuth",
-      orphanRemoval = true)
-  private Set<LoginAudit> loginAudits = new HashSet<>();
 
   @OneToMany(
       fetch = FetchType.LAZY,

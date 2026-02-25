@@ -1,10 +1,12 @@
 package com.tcs.user_auth_management.model.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.maxmind.geoip2.model.CityResponse;
 import lombok.Data;
 import org.apache.commons.lang3.ObjectUtils;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class DtoLocation {
   private String countryName;
   private String countryCode;
