@@ -14,9 +14,9 @@ import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import com.tcs.user_auth_management.model.entity.user.UserSecurity;
 import com.tcs.user_auth_management.model.mapper.UserAuthMapper;
 import com.tcs.user_auth_management.repository.UserAuthRepository;
-import com.tcs.user_auth_management.repository.UserSessionRepository;
 import com.tcs.user_auth_management.service.user.UserActivityService;
 import com.tcs.user_auth_management.service.user.UserRequestInfoService;
+import com.tcs.user_auth_management.service.user.UserSessionService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,7 +25,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
@@ -38,17 +37,19 @@ public class AuthService {
   private final UserAuthRepository repository;
   private final PasswordEncoder passwordEncoder;
   private final TokenJwtService tokenService;
-  private final UserSessionRepository userSessionRepository;
   private final MailService mailService;
   private final UserAuthMapper userAuthMapper;
   private final UserActivityService activityService;
   private final HttpServletRequest request;
   private final Executor executor;
+  private final UserSessionService userSessionService;
 
+  @Transactional
   public DtoJwtTokenResponse loginUser(DtoUserLogin login) {
     DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
-    var user = this.authenticationUsernameAndPassword(login,requestInfo);
-    return tokenService.generateToken(user);
+    var user = this.authenticationUsernameAndPassword(login, requestInfo);
+    var session = userSessionService.createSession(user, tokenService.getExpireInSecondsRefresh());
+    return tokenService.generateToken(user, session);
   }
 
   @Transactional
@@ -57,7 +58,9 @@ public class AuthService {
     UserAuth userAuth = userAuthMapper.toEntity(register, passwordEncoder);
     userAuth.addRole(Role.USER);
     repository.save(userAuth);
-    return tokenService.generateToken(userAuth);
+    var session =
+        userSessionService.createSession(userAuth, tokenService.getExpireInSecondsRefresh());
+    return tokenService.generateToken(userAuth, session);
   }
 
   public void logout(String refreshToken) {
@@ -65,7 +68,7 @@ public class AuthService {
     CompletableFuture.runAsync(
         () -> {
           var jwt = new DtoJwtPayload(this.tokenService.verifyRefreshToken(refreshToken));
-          userSessionRepository.updateInvokedBySessionId(jwt.getSessionId(), true);
+          userSessionService.invokeSession(jwt.getJwtId());
         },
         executor);
   }
@@ -75,7 +78,7 @@ public class AuthService {
     CompletableFuture.runAsync(
         () -> {
           var jwt = new DtoJwtPayload(this.tokenService.verifyRefreshToken(refreshToken));
-          userSessionRepository.updateInvokedByUserAuthId(jwt.getUserId(), true);
+          userSessionService.invokeSessionAllByUserAuthId(jwt.getUserId());
         },
         executor);
   }
@@ -88,7 +91,8 @@ public class AuthService {
   }
 
   public void resetUserPassword(DtoResetPassword resetPassword) {
-    var jwt = tokenService.verifyTokenPayload(resetPassword.resetToken(), JwtTokenType.RESET_PASSWORD);
+    var jwt =
+        tokenService.verifyTokenPayload(resetPassword.resetToken(), JwtTokenType.RESET_PASSWORD);
     UserAuth userAuth = isUserActive(jwt.getUserId());
     userAuth.setPassword(passwordEncoder.encode(resetPassword.newPassword()));
     userAuth.setEmailVerified(true);
@@ -107,25 +111,31 @@ public class AuthService {
     mailService.asyncSendEmailVerify(
         userAuth.getUsername(),
         userAuth.getEmail(),
-        tokenService.generateVerifyEmailToken(this.authenticationUser(userAuth)));
+        tokenService.generateVerifyEmailToken(UserSecurity.getAuthenticationByUserAuth(userAuth)));
   }
 
+  @Transactional
   public DtoJwtTokenResponse refreshToken(String refreshToken) {
     var jwt = tokenService.verifyRefreshToken(refreshToken);
     var payload = new DtoJwtPayload(jwt);
     UserAuth userAuth = isUserActive(payload.getUserId());
-    return tokenService.generateToken(userAuth, jwt);
+    var session =
+        userSessionService.rotateSessionToken(
+            payload.getJwtId(), tokenService.getExpireInSecondsRefresh());
+    return tokenService.generateToken(userAuth, session);
   }
 
   public void forgotPassword(String email) {
     Optional<UserAuth> userOptional = repository.findByEmail(email);
     if (userOptional.isEmpty()) return;
     UserAuth userAuth = userOptional.get();
-    String resetPasswordToken = this.tokenService.resetToken(this.authenticationUser(userAuth));
+    String resetPasswordToken =
+        this.tokenService.resetToken(UserSecurity.getAuthenticationByUserAuth(userAuth));
     mailService.asyncSendForgotPassword(email, userAuth.getUsername(), resetPasswordToken);
   }
 
-  public UserAuth authenticationUsernameAndPassword(DtoUserLogin login,DtoUserRequestInfo requestInfo) {
+  public UserAuth authenticationUsernameAndPassword(
+      DtoUserLogin login, DtoUserRequestInfo requestInfo) {
     var user = this.isUserActiveByUsername(login.username());
     if (!passwordEncoder.matches(login.password(), user.getPassword())) {
       activityService.asyncSaveAudit(requestInfo, user.getId(), AuditLogEvent.LOGIN_FAILURE);
@@ -167,13 +177,7 @@ public class AuthService {
                     "Invalid username", HttpStatus.UNAUTHORIZED.value()));
   }
 
-  private Authentication authenticationUser(UserAuth user) {
-    return UserSecurity.getAuthenticationByUserAuth(user);
-  }
-
   private void validateUserDuplication(DtoUserRegister register) {
-    // Run both checks concurrently
-
     CompletableFuture<Boolean> usernameExistsFuture =
         CompletableFuture.supplyAsync(
             () -> repository.existsByUsername(register.username()), executor);

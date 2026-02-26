@@ -1,10 +1,9 @@
 package com.tcs.user_auth_management.repository;
 
 import com.tcs.user_auth_management.model.entity.user.UserSession;
-
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -19,18 +18,22 @@ public interface UserSessionRepository extends JpaRepository<UserSession, UUID> 
   @EntityGraph(attributePaths = {"userAuth"})
   Page<UserSession> findAll(Pageable pageable);
 
-  @Query("SELECT us FROM UserSession us WHERE us.id = :id")
-  Optional<UserSession> findByIdWithUserAuth(@Param("id") UUID id);
+  @Query("SELECT us FROM UserSession us WHERE us.jwtTokenId = :jwtId")
+  Optional<UserSession> findByJwtId(@Param("jwtId") UUID jwtId);
 
   // Update by session ID
   @Modifying
   @Query("UPDATE UserSession us SET us.invoked = :invoked WHERE us.id = :sessionId")
-  int updateInvokedBySessionId(@Param("sessionId") UUID sessionId,
-                               @Param("invoked") boolean invoked);
+  int updateInvokedBySessionId(
+      @Param("sessionId") UUID sessionId, @Param("invoked") boolean invoked);
 
   // Update by userAuth ID
   @Modifying
-  @Query("UPDATE UserSession us SET us.invoked = :invoked WHERE us.userAuth.id = :userAuthId")
-  int updateInvokedByUserAuthId(@Param("userAuthId") UUID userAuthId,
-                                @Param("invoked") boolean invoked);
+  @Query(
+      "UPDATE UserSession us SET us.invoked = :invoked, us.updatedAt = :now, us.invokedTime = :now "
+          + "WHERE us.userAuth.id = :userAuthId")
+  int updateInvokedByUserAuthId(
+      @Param("userAuthId") UUID userAuthId,
+      @Param("invoked") boolean invoked,
+      @Param("now") Instant now);
 }

@@ -81,9 +81,4 @@ public class SecurityConfig implements WebMvcConfigurer {
     source.registerCorsConfiguration("/**", corsConfig);
     return source;
   }
-
-  @Bean
-  public PasswordEncoder passwordEncoder() {
-    return new BCryptPasswordEncoder();
-  }
 }

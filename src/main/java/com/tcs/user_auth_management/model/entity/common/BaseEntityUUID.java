@@ -1,7 +1,6 @@
 package com.tcs.user_auth_management.model.entity.common;
 
 import jakarta.persistence.*;
-import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.Getter;

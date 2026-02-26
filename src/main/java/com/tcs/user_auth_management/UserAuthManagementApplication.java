@@ -11,7 +11,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableConfigurationProperties({RSAProperties.class, MailConfigProperties.class})
 @EnableScheduling
 public class UserAuthManagementApplication {
-
   public static void main(String[] args) {
     SpringApplication.run(UserAuthManagementApplication.class, args);
   }

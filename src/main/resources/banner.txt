@@ -7,5 +7,5 @@
 ${application.title} ${application.version}
 Powered by Spring Boot ${spring-boot.version} 🇰🇭
 
-This project is designed and optimized to run on **JDK 21**.
+This project is designed and optimized to run on **JDK 25**.
 Current runtime Java version: ${java.version}

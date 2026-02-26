@@ -2,11 +2,10 @@ package com.tcs.user_auth_management.service.user;
 
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
 import com.tcs.user_auth_management.model.dto.DtoUserSession;
-import com.tcs.user_auth_management.model.entity.user.UserSession;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
+import com.tcs.user_auth_management.model.entity.user.UserSession;
 import com.tcs.user_auth_management.repository.UserSessionRepository;
 import com.tcs.user_auth_management.util.pagination.PaginationParam;
-import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -18,7 +17,6 @@ import org.springframework.stereotype.Service;
 @AllArgsConstructor
 public class UserSessionService {
   private final UserSessionRepository repository;
-  private final HttpServletRequest request;
   private final UserRequestInfoService requestInfoService;
 
   public Page<DtoUserSession> userSessionPage(PaginationParam pagination) {
@@ -26,29 +24,54 @@ public class UserSessionService {
     return response.map(DtoUserSession::new);
   }
 
-  public UserSession createNewSession(UserAuth userAuth, Instant expireTime) {
+  public UserSession createSession(UserAuth userAuth, long expireInSec) {
     UserSession session = new UserSession();
     session.setUserAuth(userAuth);
-    session.setExpiryDate(expireTime);
+    session.setExpiryDate(Instant.now().plusSeconds(expireInSec));
     session.setInvoked(false);
-    var info = requestInfoService.userRequestInfo(request);
+    session.generateJwtTokenId();
+    var info = requestInfoService.userRequestInfo();
     session.setUserAgent(info.getUserAgent());
     session.setLocation(info.getLocation());
     session.setIpAddress(info.getIp());
     return repository.save(session);
   }
 
-  public UserSession updateSessionExpiredTime(UUID sessionId, Instant expireTime) {
-    UserSession session =
-        repository
-            .findById(sessionId)
-            .orElseThrow(
-                () -> new ApiExceptionStatusException("Invalid session Id", HttpStatus.NOT_FOUND));
-    session.setExpiryDate(expireTime);
-    var info = requestInfoService.userRequestInfo(request);
-    session.setUserAgent(info.getUserAgent());
-    session.setLocation(info.getLocation());
-    session.setIpAddress(info.getIp());
-    return repository.save(session);
+  public UserSession rotateSessionToken(UUID oldJwtId, long expireInSec) {
+    UserSession session = getUserSessionByJwtId(oldJwtId);
+    Instant now = Instant.now();
+    // Check if we already rotated this token very recently
+    // reason to check 30sec because if user have fail connection they can retry to get new jwt token
+    // without have to Re-login again
+    boolean isInGracePeriod = session.getUpdateJwtTokenIdAt() != null
+            && session.getUpdateJwtTokenIdAt().isAfter(now.minusSeconds(30));
+
+    if (!isInGracePeriod) {
+      // generate new jwt token id so user can't use their old token
+      session.generateJwtTokenId();
+      session.setUpdateJwtTokenIdAt(now);
+    }
+    session.setExpiryDate(Instant.now().plusSeconds(expireInSec));
+    session.setUpdateJwtTokenIdAt(Instant.now());
+    repository.save(session);
+    return session;
+  }
+
+  public void invokeSession(UUID jwtId) {
+    UserSession userSession = this.getUserSessionByJwtId(jwtId);
+    userSession.setInvoked(true);
+    userSession.setInvokedTime(Instant.now());
+    repository.save(userSession);
+  }
+
+  public void invokeSessionAllByUserAuthId(UUID userAuthId) {
+    repository.updateInvokedByUserAuthId(userAuthId, true, Instant.now());
+  }
+
+  public UserSession getUserSessionByJwtId(UUID jwtId) {
+    return repository
+        .findByJwtId(jwtId)
+        .orElseThrow(
+            () -> new ApiExceptionStatusException("Invalid Jwt token", HttpStatus.BAD_REQUEST));
   }
 }

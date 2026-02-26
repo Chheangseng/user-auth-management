@@ -18,9 +18,16 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class UserRequestInfoService {
   private final DatabaseReader databaseReader;
+  private final HttpServletRequest request;
 
   public DtoUserRequestInfo userRequestInfo(HttpServletRequest httpServletRequest) {
     DtoUserRequestInfo info = new DtoUserRequestInfo(httpServletRequest);
+    getLocationInfo(info.getIp()).ifPresent(info::setLocationInfo);
+    return info;
+  }
+
+  public DtoUserRequestInfo userRequestInfo() {
+    DtoUserRequestInfo info = new DtoUserRequestInfo(this.request);
     getLocationInfo(info.getIp()).ifPresent(info::setLocationInfo);
     return info;
   }

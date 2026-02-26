@@ -4,15 +4,13 @@ import com.tcs.user_auth_management.emuns.JwtTokenType;
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
 import com.tcs.user_auth_management.model.dto.DtoJwtPayload;
 import com.tcs.user_auth_management.model.dto.DtoJwtTokenResponse;
-import com.tcs.user_auth_management.model.entity.user.UserSession;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
-
+import com.tcs.user_auth_management.model.entity.user.UserSession;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
-
-import com.tcs.user_auth_management.service.user.UserSessionService;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Service;
@@ -23,50 +21,40 @@ public class TokenJwtService {
   private final String issuer = "authentication-server";
   private final JwtEncoder encoder;
   private final JwtDecoder decoder;
-  private final UserSessionService userSessionService;
-  // 3 min
   private final long expireInSeconds = 120;
-  private final long expireInSecondsRefresh = 60 * 30;
+  @Getter private final long expireInSecondsRefresh = 60 * 30;
 
-  public DtoJwtTokenResponse generateToken(UserAuth userAuth) {
+  public DtoJwtTokenResponse generateToken(UserAuth userAuth, UserSession session) {
     Instant now = Instant.now();
-    UserSession session = userSessionService.createNewSession(userAuth, now);
-    return buildTokenResponse(userAuth, session, now);
-  }
-
-  public DtoJwtTokenResponse generateToken(UserAuth userAuth, Jwt jwt) {
-    Instant now = Instant.now();
-    UserSession session =
-        userSessionService.updateSessionExpiredTime(new DtoJwtPayload(jwt).getSessionId(), now);
     return buildTokenResponse(userAuth, session, now);
   }
 
   private DtoJwtTokenResponse buildTokenResponse(
-          UserAuth userAuth, UserSession session, Instant now) {
+      UserAuth userAuth, UserSession session, Instant now) {
     return new DtoJwtTokenResponse(
-        accessToken(userAuth, session.getId().toString(), now),
+        accessToken(userAuth, session, now),
         expireInSeconds,
-        refreshToken(userAuth, session.getId().toString(), now),
+        refreshToken(userAuth, session, now),
         expireInSecondsRefresh);
   }
 
-  private String refreshToken(UserAuth userAuth, String sessionId, Instant now) {
+  private String refreshToken(UserAuth userAuth, UserSession session, Instant now) {
     JwtClaimsSet claims =
         JwtClaimsSet.builder()
-            .id(sessionId)
+            .id(session.getJwtTokenId().toString())
             .issuer(issuer)
             .issuedAt(now)
-            .expiresAt(now.plusSeconds(expireInSecondsRefresh))
+            .expiresAt(session.getExpiryDate())
             .subject(userAuth.getId().toString())
             .claim("type", JwtTokenType.REFRESH.getType())
             .build();
     return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
   }
 
-  private String accessToken(UserAuth userAuth, String sessionId, Instant now) {
+  private String accessToken(UserAuth userAuth, UserSession session, Instant now) {
     JwtClaimsSet claims =
         JwtClaimsSet.builder()
-            .id(sessionId)
+            .id(session.getJwtTokenId().toString())
             .issuer(issuer)
             .issuedAt(now)
             .expiresAt(now.plusSeconds(expireInSeconds))
@@ -149,19 +137,9 @@ public class TokenJwtService {
     try {
       var decode = decoder.decode(token);
       var type = validateType(decode);
-      if (type != JwtTokenType.REFRESH) {
+      if (!type.equals(jwtTokenType)) {
         throw new ApiExceptionStatusException("Incorrect Token Type or format", 400);
       }
-      return new DtoJwtPayload(decode);
-    } catch (JwtException e) {
-      throw new ApiExceptionStatusException(e.getMessage(), 400, e);
-    }
-  }
-
-  public DtoJwtPayload verifyTokenPayload(String token) {
-    try {
-      var decode = decoder.decode(token);
-      validateType(decode);
       return new DtoJwtPayload(decode);
     } catch (JwtException e) {
       throw new ApiExceptionStatusException(e.getMessage(), 400, e);
