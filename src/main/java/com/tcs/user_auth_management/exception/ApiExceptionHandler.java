@@ -35,6 +35,7 @@ public class ApiExceptionHandler {
             ZonedDateTime.now(ZoneId.of("Z")));
     return new ResponseEntity<>(apiException, httpStatus);
   }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<Object> handleAllUncaughtExceptions(Exception ex) {
     // This ensures that ANY unexpected 500 error always shows a trace

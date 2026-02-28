@@ -31,6 +31,7 @@
         <skipTests>true</skipTests>
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok.version>1.18.38</lombok.version>
+        <hibernate.processor.version>7.2.5.Final</hibernate.processor.version>
     </properties>
     <dependencies>
         <dependency>
@@ -53,6 +54,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-processor</artifactId>
+            <version>${hibernate.processor.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -133,6 +140,11 @@
                             <groupId>org.mapstruct</groupId>
                             <artifactId>mapstruct-processor</artifactId>
                             <version>${mapstruct.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.hibernate.orm</groupId>
+                            <artifactId>hibernate-processor</artifactId>
+                            <version>${hibernate.processor.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>

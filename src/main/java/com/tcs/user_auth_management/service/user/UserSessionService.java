@@ -5,6 +5,7 @@ import com.tcs.user_auth_management.model.dto.DtoUserSession;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import com.tcs.user_auth_management.model.entity.user.UserSession;
 import com.tcs.user_auth_management.repository.UserSessionRepository;
+import com.tcs.user_auth_management.repository.specification.UserSessionSpec;
 import com.tcs.user_auth_management.util.pagination.PaginationParam;
 import java.time.Instant;
 import java.util.UUID;
@@ -41,9 +42,11 @@ public class UserSessionService {
     UserSession session = getUserSessionByJwtId(oldJwtId);
     Instant now = Instant.now();
     // Check if we already rotated this token very recently
-    // reason to check 30sec because if user have fail connection they can retry to get new jwt token
+    // reason to check 30sec because if user have fail connection they can retry to get new jwt
+    // token
     // without have to Re-login again
-    boolean isInGracePeriod = session.getUpdateJwtTokenIdAt() != null
+    boolean isInGracePeriod =
+        session.getUpdateJwtTokenIdAt() != null
             && session.getUpdateJwtTokenIdAt().isAfter(now.minusSeconds(30));
 
     if (!isInGracePeriod) {
@@ -65,7 +68,7 @@ public class UserSessionService {
   }
 
   public void invokeSessionAllByUserAuthId(UUID userAuthId) {
-    repository.updateInvokedByUserAuthId(userAuthId, true, Instant.now());
+    repository.update(UserSessionSpec.invokeAllSessionByUserAuthId(userAuthId));
   }
 
   public UserSession getUserSessionByJwtId(UUID jwtId) {
