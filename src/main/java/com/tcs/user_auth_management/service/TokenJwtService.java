@@ -53,7 +53,7 @@ public class TokenJwtService {
                 session.getId().toString(),
                 session.getJwtTokenId().toString(),
                 userAuth.getId().toString(),
-                JwtTokenType.REFRESH)
+                JwtTokenType.ACCESS_TOKEN)
             .issuedAt(now)
             .expiresAt(now.plusSeconds(expireInSeconds))
             .build();

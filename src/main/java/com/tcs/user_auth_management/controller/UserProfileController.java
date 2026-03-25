@@ -2,7 +2,6 @@ package com.tcs.user_auth_management.controller;
 
 import com.tcs.user_auth_management.model.dto.DtoUserSession;
 import com.tcs.user_auth_management.model.dto.user.DtoChangePassword;
-import com.tcs.user_auth_management.model.dto.user.DtoResetPassword;
 import com.tcs.user_auth_management.model.entity.user.UserSecurity;
 import com.tcs.user_auth_management.service.AuthService;
 import com.tcs.user_auth_management.service.user.UserSessionService;
@@ -29,10 +28,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserProfileController {
   private final AuthService authService;
   private final UserSessionService userSessionService;
+
   @GetMapping
   public ResponseEntity<UserSecurity> userSecurity() {
     return ResponseEntity.ok(UserSecurity.getRequiredCurrentUser());
   }
+
   @GetMapping("/sessions")
   public ResponseEntity<PaginationEntityResponse<DtoUserSession>> pagination(
       @ParameterObject PaginationParam paginationParam) {
@@ -75,7 +76,7 @@ public class UserProfileController {
 
   @PostMapping("/reset-password")
   public ResponseEntity<Void> resetUserPassword(
-     @Valid @RequestBody DtoChangePassword resetPassword) {
+      @Valid @RequestBody DtoChangePassword resetPassword) {
     authService.changePassword(UserSecurity.getRequiredCurrentUser().getUserId(), resetPassword);
     return ResponseEntity.ok().build();
   }

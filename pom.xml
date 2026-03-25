@@ -164,6 +164,15 @@
                         </exclude>
                     </excludes>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>process-aot</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>process-aot</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.graalvm.buildtools</groupId>
@@ -171,5 +180,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>

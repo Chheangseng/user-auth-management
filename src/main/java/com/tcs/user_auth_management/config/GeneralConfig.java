@@ -18,4 +18,9 @@ public class GeneralConfig {
   public PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
   }
+
+  @Bean
+  public ClassLoader customClassLoader() {
+    return Thread.currentThread().getContextClassLoader();
+  }
 }

@@ -11,7 +11,6 @@ import com.tcs.user_auth_management.model.dto.user.DtoResetPassword;
 import com.tcs.user_auth_management.model.dto.user.DtoUserLogin;
 import com.tcs.user_auth_management.model.dto.user.DtoUserRegister;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
-import com.tcs.user_auth_management.model.entity.user.UserSecurity;
 import com.tcs.user_auth_management.model.mapper.UserAuthMapper;
 import com.tcs.user_auth_management.repository.UserAuthRepository;
 import com.tcs.user_auth_management.service.user.UserActivityService;
@@ -64,10 +63,10 @@ public class AuthService {
   }
 
   @Transactional
-  public void changePassword(UUID userId,DtoChangePassword changePassword){
+  public void changePassword(UUID userId, DtoChangePassword changePassword) {
     var user = isUserActive(userId);
     if (!passwordEncoder.matches(changePassword.oldPassword(), user.getPassword())) {
-      throw new ApiExceptionStatusException("Incorrect old password",HttpStatus.UNAUTHORIZED);
+      throw new ApiExceptionStatusException("Incorrect old password", HttpStatus.UNAUTHORIZED);
     }
     user.setPassword(passwordEncoder.encode(changePassword.newPassword()));
     repository.save(user);
@@ -179,12 +178,6 @@ public class AuthService {
           "Your account have been locked.", HttpStatus.UNAUTHORIZED);
     }
     return user;
-  }
-
-  public UserSecurity validateUserJwtSession(String jwtToken){
-    var jwt = jwtVerifyService.verifyToken(jwtToken,JwtTokenType.ACCESS_TOKEN);
-    userSessionService.verifyUserSession(DtoJwtClaim.getSessionId(jwt),DtoJwtClaim.getJwtId(jwt));
-    return isUserActive(DtoJwtClaim.getUserId(jwt));
   }
 
   public UserAuth findByUsername(String username) {
