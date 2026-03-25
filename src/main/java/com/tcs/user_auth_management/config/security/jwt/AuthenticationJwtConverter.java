@@ -2,6 +2,7 @@ package com.tcs.user_auth_management.config.security.jwt;
 
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
 import com.tcs.user_auth_management.model.dto.DtoJwtClaim;
+import com.tcs.user_auth_management.model.dto.DtoUserAuth;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import com.tcs.user_auth_management.model.entity.user.UserSecurity;
 import com.tcs.user_auth_management.model.entity.user.UserSession;
@@ -17,6 +18,7 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 @Component
 @AllArgsConstructor
@@ -28,12 +30,7 @@ public class AuthenticationJwtConverter implements Converter<Jwt, AbstractAuthen
   @Override
   public AbstractAuthenticationToken convert(Jwt source) {
     try{
-      UUID sessionId = DtoJwtClaim.getSessionId(source);
-      UUID jwtId = DtoJwtClaim.getJwtId(source);
-      UUID userId = DtoJwtClaim.getUserId(source);
-      userSessionService.verifyUserSession(sessionId, jwtId);
-      UserAuth user = authService.isUserActive(userId);
-      var userSecurity = new UserSecurity(user, jwtId, sessionId);
+      var userSecurity = authService.authenticationCheck(source);
       return new JwtAuthenticationToken(source, userSecurity.getAuthorities(), source.getSubject()) {
         @Override
         public Object getPrincipal() {

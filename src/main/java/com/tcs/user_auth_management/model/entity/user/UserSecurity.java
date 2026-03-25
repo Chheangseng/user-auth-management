@@ -1,5 +1,6 @@
 package com.tcs.user_auth_management.model.entity.user;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
 import com.tcs.user_auth_management.model.entity.user.authorization.Role;
 import java.util.Collection;
@@ -9,6 +10,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -16,64 +18,87 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 
-public record UserSecurity(UserAuth userAuth, UUID jwtId, UUID sessionId)
-    implements UserDetails {
-  @Override
-  public Collection<? extends GrantedAuthority> getAuthorities() {
+@Getter
+public class UserSecurity implements UserDetails {
+  private final UUID userId;
+  private final String username;
+
+  @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+  private final String password;
+
+  private final boolean enabled;
+  private final Set<GrantedAuthority> authorities;
+  private final UUID jwtId;
+  private final UUID sessionId;
+
+  public UserSecurity(UserAuth userAuth, UUID jwtId, UUID sessionId) {
+    this.userId = userAuth.getId();
+    this.username = userAuth.getUsername();
+    this.password = userAuth.getPassword();
+    this.enabled = userAuth.isEnabled();
+    this.jwtId = jwtId;
+    this.sessionId = sessionId;
     Set<GrantedAuthority> authorities = new HashSet<>();
     Role role = userAuth.getRole();
-    if(Objects.isNull(role)) return authorities;
+    if (Objects.isNull(role)) {
+      this.authorities = authorities;
+      return;
+    }
     // Add role authority
     authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()));
 
-    authorities.addAll(
-        role.getPermissions().stream()
-            .map(permission -> new SimpleGrantedAuthority(permission.getPermissionCode()))
-            .collect(Collectors.toSet()));
-    return authorities;
+    // Add permission authorities
+    if (role.getPermissions() != null) {
+      authorities.addAll(
+          role.getPermissions().stream()
+              .map(permission -> new SimpleGrantedAuthority(permission.getPermissionCode()))
+              .collect(Collectors.toSet()));
+    }
+    this.authorities = authorities;
   }
 
-  public UUID getUserId() {
-    return this.userAuth.getId();
+  @Override
+  public Collection<? extends GrantedAuthority> getAuthorities() {
+    return authorities;
   }
 
   @Override
   public String getPassword() {
-    return this.userAuth.getPassword();
+    return password;
   }
 
   @Override
   public String getUsername() {
-    return this.userAuth.getUsername();
+    return username;
   }
 
   @Override
   public boolean isAccountNonExpired() {
-    return this.userAuth.isEnabled();
+    return enabled;
   }
 
   @Override
   public boolean isAccountNonLocked() {
-    return this.userAuth.isEnabled();
+    return enabled;
   }
 
   @Override
   public boolean isCredentialsNonExpired() {
-    return this.userAuth.isEnabled();
+    return enabled;
   }
 
   @Override
   public boolean isEnabled() {
-    return this.userAuth.isEnabled();
+    return enabled;
   }
 
+  // Static helper methods
   public static Optional<UserSecurity> getCurrentUser() {
-    return UserSecurity.extractUserFromAuthentication(
-        SecurityContextHolder.getContext().getAuthentication());
+    return extractUserFromAuthentication(SecurityContextHolder.getContext().getAuthentication());
   }
 
   public static UserSecurity getRequiredCurrentUser() {
-    var user = UserSecurity.getCurrentUser();
+    var user = getCurrentUser();
     if (user.isEmpty()) {
       throw new ApiExceptionStatusException("Invalid user", HttpStatus.INTERNAL_SERVER_ERROR);
     }

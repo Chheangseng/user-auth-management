@@ -31,6 +31,8 @@ public class TokenJwtVerifyService {
       return decode;
     } catch (JwtException e) {
       throw new ApiExceptionStatusException(e.getMessage(), 400, e);
+    }catch (Exception e){
+      throw new ApiExceptionStatusException("Invalid Jwt token",HttpStatus.UNAUTHORIZED);
     }
   }
 

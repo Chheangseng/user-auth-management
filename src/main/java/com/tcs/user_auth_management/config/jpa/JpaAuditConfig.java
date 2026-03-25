@@ -19,7 +19,7 @@ public class JpaAuditConfig {
         return Optional.empty();
       }
 
-      return user.map(userSecurity -> userSecurity.userAuth().getId().toString());
+      return user.map(userSecurity -> userSecurity.getUserId().toString());
     };
   }
 }

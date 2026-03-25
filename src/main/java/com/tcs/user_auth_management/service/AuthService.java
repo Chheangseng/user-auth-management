@@ -11,6 +11,7 @@ import com.tcs.user_auth_management.model.dto.user.DtoResetPassword;
 import com.tcs.user_auth_management.model.dto.user.DtoUserLogin;
 import com.tcs.user_auth_management.model.dto.user.DtoUserRegister;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
+import com.tcs.user_auth_management.model.entity.user.UserSecurity;
 import com.tcs.user_auth_management.model.mapper.UserAuthMapper;
 import com.tcs.user_auth_management.repository.UserAuthRepository;
 import com.tcs.user_auth_management.service.user.UserActivityService;
@@ -22,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import lombok.AllArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -70,6 +72,23 @@ public class AuthService {
     }
     user.setPassword(passwordEncoder.encode(changePassword.newPassword()));
     repository.save(user);
+  }
+
+  public UserSecurity authenticationCheck(Jwt source) {
+    UUID sessionId = DtoJwtClaim.getSessionId(source);
+    UUID jwtId = DtoJwtClaim.getJwtId(source);
+    UUID userId = DtoJwtClaim.getUserId(source);
+    userSessionService.verifyUserSession(sessionId, jwtId);
+    var user =
+        repository
+            .findByIdWithRole(userId)
+            .orElseThrow(
+                () -> new ApiExceptionStatusException("Invalid user", HttpStatus.NOT_FOUND));
+    if (!user.isEnabled()) {
+      throw new ApiExceptionStatusException(
+          "This account have been disable", HttpStatus.UNAUTHORIZED);
+    }
+    return new UserSecurity(user, jwtId, sessionId);
   }
 
   public void logout(String refreshToken) {
