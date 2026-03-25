@@ -24,8 +24,7 @@ import org.springframework.util.CollectionUtils;
 @AllArgsConstructor
 public class AuthenticationJwtConverter implements Converter<Jwt, AbstractAuthenticationToken> {
   private final AuthService authService;
-  private final UserSessionService userSessionService;
-  private final Executor executor;
+
 
   @Override
   public AbstractAuthenticationToken convert(Jwt source) {

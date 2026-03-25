@@ -8,6 +8,7 @@ import com.tcs.user_auth_management.repository.UserSessionRepository;
 import com.tcs.user_auth_management.repository.specification.UserSessionSpec;
 import com.tcs.user_auth_management.util.pagination.PaginationParam;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -67,6 +68,22 @@ public class UserSessionService {
     repository.save(userSession);
   }
 
+  public void invokeSessionById(UUID sessionId) {
+    invokeSessionById(sessionId, null);
+  }
+
+  public void invokeSessionById(UUID sessionId, UUID userId) {
+    var userSession = getUserSessionBySessionId(sessionId);
+    if (Objects.nonNull(userId) && !userId.equals(userSession.getUserAuth().getId())) {
+      throw new ApiExceptionStatusException(
+              "Cannot invoke session belonging to another user",
+              HttpStatus.UNAUTHORIZED);
+    }
+    userSession.setInvoked(true);
+    userSession.setInvokedTime(Instant.now());
+    repository.save(userSession);
+  }
+
   public void invokeSessionAllByUserAuthId(UUID userAuthId) {
     repository.update(UserSessionSpec.invokeAllSessionByUserAuthId(userAuthId));
   }
@@ -79,25 +96,31 @@ public class UserSessionService {
   }
 
   public UserSession verifyUserSession(UUID sessionId, UUID jwtId) {
-    var userSession =
-        repository
-            .findById(sessionId)
-            .orElseThrow(
-                () -> new ApiExceptionStatusException("Invalid Jwt token", HttpStatus.BAD_REQUEST));
-    // Check if session is revoked
-    if (userSession.isInvoked()) {
-      throw new ApiExceptionStatusException("Session has been revoked", HttpStatus.BAD_REQUEST);
-    }
-
+    var userSession = getUserSessionBySessionId(sessionId);
+    validateSession(userSession);
     // Check if JWT ID matches
     if (!jwtId.equals(userSession.getJwtTokenId())) {
       throw new ApiExceptionStatusException("Invalid JWT token ID", HttpStatus.BAD_REQUEST);
     }
 
+    return userSession;
+  }
+
+  public UserSession getUserSessionBySessionId(UUID sessionId) {
+    return repository
+        .findById(sessionId)
+        .orElseThrow(
+            () -> new ApiExceptionStatusException("Invalid Jwt token", HttpStatus.BAD_REQUEST));
+  }
+
+  public void validateSession(UserSession userSession) {
     // Check if session has expired
     if (userSession.getExpiryDate().isBefore(Instant.now())) {
       throw new ApiExceptionStatusException("Session has expired", HttpStatus.BAD_REQUEST);
     }
-    return userSession;
+    // Check if session is revoked
+    if (userSession.isInvoked()) {
+      throw new ApiExceptionStatusException("Session has been revoked", HttpStatus.BAD_REQUEST);
+    }
   }
 }
