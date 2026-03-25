@@ -2,15 +2,16 @@ package com.tcs.user_auth_management.service;
 
 import com.tcs.user_auth_management.emuns.AuditLogEvent;
 import com.tcs.user_auth_management.emuns.JwtTokenType;
-import com.tcs.user_auth_management.emuns.Role;
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
 import com.tcs.user_auth_management.model.dto.DtoJwtClaim;
 import com.tcs.user_auth_management.model.dto.DtoJwtTokenResponse;
 import com.tcs.user_auth_management.model.dto.DtoUserRequestInfo;
+import com.tcs.user_auth_management.model.dto.user.DtoChangePassword;
 import com.tcs.user_auth_management.model.dto.user.DtoResetPassword;
 import com.tcs.user_auth_management.model.dto.user.DtoUserLogin;
 import com.tcs.user_auth_management.model.dto.user.DtoUserRegister;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
+import com.tcs.user_auth_management.model.entity.user.UserSecurity;
 import com.tcs.user_auth_management.model.mapper.UserAuthMapper;
 import com.tcs.user_auth_management.repository.UserAuthRepository;
 import com.tcs.user_auth_management.service.user.UserActivityService;
@@ -56,11 +57,20 @@ public class AuthService {
   public DtoJwtTokenResponse registerAccount(DtoUserRegister register) {
     validateUserDuplication(register);
     UserAuth userAuth = userAuthMapper.toEntity(register, passwordEncoder);
-    userAuth.addRole(Role.USER);
     repository.save(userAuth);
     var session =
         userSessionService.createSession(userAuth, tokenService.getExpireInSecondsRefresh());
     return tokenService.generateToken(userAuth, session);
+  }
+
+  @Transactional
+  public void changePassword(UUID userId,DtoChangePassword changePassword){
+    var user = isUserActive(userId);
+    if (!passwordEncoder.matches(changePassword.oldPassword(), user.getPassword())) {
+      throw new ApiExceptionStatusException("Incorrect old password",HttpStatus.UNAUTHORIZED);
+    }
+    user.setPassword(passwordEncoder.encode(changePassword.newPassword()));
+    repository.save(user);
   }
 
   public void logout(String refreshToken) {
@@ -155,7 +165,7 @@ public class AuthService {
             .findById(userId)
             .orElseThrow(
                 () -> new ApiExceptionStatusException("User not found", HttpStatus.NOT_FOUND));
-    if (!user.isActivate()) {
+    if (!user.isEnabled()) {
       throw new ApiExceptionStatusException(
           "Your account have been locked.", HttpStatus.UNAUTHORIZED);
     }
@@ -164,11 +174,17 @@ public class AuthService {
 
   public UserAuth isUserActiveByUsername(String username) {
     var user = findByUsername(username);
-    if (!user.isActivate()) {
+    if (!user.isEnabled()) {
       throw new ApiExceptionStatusException(
           "Your account have been locked.", HttpStatus.UNAUTHORIZED);
     }
     return user;
+  }
+
+  public UserSecurity validateUserJwtSession(String jwtToken){
+    var jwt = jwtVerifyService.verifyToken(jwtToken,JwtTokenType.ACCESS_TOKEN);
+    userSessionService.verifyUserSession(DtoJwtClaim.getSessionId(jwt),DtoJwtClaim.getJwtId(jwt));
+    return isUserActive(DtoJwtClaim.getUserId(jwt));
   }
 
   public UserAuth findByUsername(String username) {

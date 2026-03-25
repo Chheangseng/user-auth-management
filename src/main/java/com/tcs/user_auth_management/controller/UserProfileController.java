@@ -1,6 +1,7 @@
 package com.tcs.user_auth_management.controller;
 
 import com.tcs.user_auth_management.model.dto.DtoUserSession;
+import com.tcs.user_auth_management.model.dto.user.DtoChangePassword;
 import com.tcs.user_auth_management.model.dto.user.DtoResetPassword;
 import com.tcs.user_auth_management.model.entity.user.UserSecurity;
 import com.tcs.user_auth_management.service.AuthService;
@@ -16,6 +17,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -23,16 +25,26 @@ import org.springframework.web.bind.annotation.RestController;
 
 @AllArgsConstructor
 @RestController
-@RequestMapping("/api/user")
-public class UserController {
+@RequestMapping("/api/user/me")
+public class UserProfileController {
   private final AuthService authService;
   private final UserSessionService userSessionService;
-
+  @GetMapping
+  public ResponseEntity<UserSecurity> userSecurity() {
+    return ResponseEntity.ok(UserSecurity.getRequiredCurrentUser());
+  }
   @GetMapping("/sessions")
   public ResponseEntity<PaginationEntityResponse<DtoUserSession>> pagination(
       @ParameterObject PaginationParam paginationParam) {
     return ResponseEntity.ok(
         new PaginationEntityResponse<>(userSessionService.userSessionPage(paginationParam)));
+  }
+
+  @PutMapping("/sessions/all/invoke")
+  public ResponseEntity<Void> invokeALLSession() {
+    userSessionService.invokeSessionAllByUserAuthId(
+        UserSecurity.getRequiredCurrentUser().getUserId());
+    return ResponseEntity.ok().build();
   }
 
   @PostMapping("/send-verify-email")
@@ -44,7 +56,7 @@ public class UserController {
     @ApiResponse(responseCode = "404", description = "User not found")
   })
   public ResponseEntity<Void> sendVerifyEmail() {
-    authService.sendVerifyEmailToken(UserSecurity.userSecurityContext().getUserId());
+    authService.sendVerifyEmailToken(UserSecurity.getRequiredCurrentUser().getUserId());
     return ResponseEntity.ok().build();
   }
 
@@ -62,16 +74,9 @@ public class UserController {
   }
 
   @PostMapping("/reset-password")
-  @Operation(
-      summary = "Reset password",
-      description = "Reset user password using reset token from email.")
-  @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "Password reset successful"),
-    @ApiResponse(responseCode = "400", description = "Invalid or expired reset token")
-  })
   public ResponseEntity<Void> resetUserPassword(
-      @Valid @RequestBody DtoResetPassword resetPassword) {
-    authService.resetUserPassword(resetPassword);
+     @Valid @RequestBody DtoChangePassword resetPassword) {
+    authService.changePassword(UserSecurity.getRequiredCurrentUser().getUserId(), resetPassword);
     return ResponseEntity.ok().build();
   }
 }

@@ -13,13 +13,13 @@ public class JpaAuditConfig {
   @Bean
   public AuditorAware<String> auditorAware() {
     return () -> {
-      var user = UserSecurity.getUserSecurityContext();
+      var user = UserSecurity.getCurrentUser();
 
       if (user.isEmpty()) {
         return Optional.empty();
       }
 
-      return user.map(userSecurity -> userSecurity.userAccount().getId().toString());
+      return user.map(userSecurity -> userSecurity.userAuth().getId().toString());
     };
   }
 }

@@ -6,7 +6,10 @@ import org.springframework.http.HttpStatus;
 @Getter
 public class ApiExceptionStatusException extends RuntimeException {
   private final int statusCode;
-
+  public ApiExceptionStatusException(HttpStatus statusCode) {
+    super(statusCode.name());
+    this.statusCode = statusCode.value();
+  }
   public ApiExceptionStatusException(String message, int statusCode) {
     super(message);
     this.statusCode = statusCode;

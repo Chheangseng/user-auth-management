@@ -1,95 +1,90 @@
 package com.tcs.user_auth_management.model.entity.user;
 
+import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
+import com.tcs.user_auth_management.model.entity.user.authorization.Role;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import com.tcs.user_auth_management.emuns.Role;
-import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 
-public record UserSecurity(UserAuth userAccount) implements UserDetails {
-
+public record UserSecurity(UserAuth userAuth, UUID jwtId, UUID sessionId)
+    implements UserDetails {
   @Override
   public Collection<? extends GrantedAuthority> getAuthorities() {
-    return this.userAccount.getRoles().stream()
-        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getValue().toUpperCase()))
-        .collect(Collectors.toSet());
-  }
+    Set<GrantedAuthority> authorities = new HashSet<>();
+    Role role = userAuth.getRole();
+    if(Objects.isNull(role)) return authorities;
+    // Add role authority
+    authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()));
 
-  public Set<String> getRoles() {
-    return this.userAccount.getRoles().stream().map(Role::getValue).collect(Collectors.toSet());
+    authorities.addAll(
+        role.getPermissions().stream()
+            .map(permission -> new SimpleGrantedAuthority(permission.getPermissionCode()))
+            .collect(Collectors.toSet()));
+    return authorities;
   }
 
   public UUID getUserId() {
-    return this.userAccount.getId();
-  }
-
-  public UserAuth getUserAuth() {
-    return this.userAccount;
+    return this.userAuth.getId();
   }
 
   @Override
   public String getPassword() {
-    return this.userAccount.getPassword();
+    return this.userAuth.getPassword();
   }
 
   @Override
   public String getUsername() {
-    return this.userAccount.getUsername();
+    return this.userAuth.getUsername();
   }
 
   @Override
   public boolean isAccountNonExpired() {
-    return this.userAccount.isActivate();
+    return this.userAuth.isEnabled();
   }
 
   @Override
   public boolean isAccountNonLocked() {
-    return this.userAccount.isActivate();
+    return this.userAuth.isEnabled();
   }
 
   @Override
   public boolean isCredentialsNonExpired() {
-    return this.userAccount.isActivate();
+    return this.userAuth.isEnabled();
   }
 
   @Override
   public boolean isEnabled() {
-    return this.userAccount.isActivate();
+    return this.userAuth.isEnabled();
   }
 
-  public static Optional<UserSecurity> getUserSecurityContext() {
-    return UserSecurity.getUserSecurityBYAuthentication(
+  public static Optional<UserSecurity> getCurrentUser() {
+    return UserSecurity.extractUserFromAuthentication(
         SecurityContextHolder.getContext().getAuthentication());
   }
-  public static UserSecurity userSecurityContext() {
-    var user = UserSecurity.getUserSecurityContext();
-    if(user.isEmpty()){
+
+  public static UserSecurity getRequiredCurrentUser() {
+    var user = UserSecurity.getCurrentUser();
+    if (user.isEmpty()) {
       throw new ApiExceptionStatusException("Invalid user", HttpStatus.INTERNAL_SERVER_ERROR);
     }
     return user.get();
   }
 
-  public static Optional<UserSecurity> getUserSecurityBYAuthentication(
+  public static Optional<UserSecurity> extractUserFromAuthentication(
       Authentication authentication) {
     if (authentication != null && authentication.getPrincipal() instanceof UserSecurity) {
       return Optional.of((UserSecurity) authentication.getPrincipal());
     }
-    return Optional.empty(); // or throw exception if required
-  }
-
-  public static Authentication getAuthenticationByUserAuth(UserAuth userAuth) {
-    var securityUser = new UserSecurity(userAuth);
-    return new UsernamePasswordAuthenticationToken(
-        securityUser, userAuth.getPassword(), securityUser.getAuthorities());
+    return Optional.empty();
   }
 }

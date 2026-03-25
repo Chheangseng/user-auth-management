@@ -5,7 +5,7 @@ import lombok.Getter;
 
 @Getter
 public enum JwtTokenType {
-    ACCESS("access"),
+    ACCESS_TOKEN("access_token"),
     REFRESH("refresh"),
     TEMPORARY("temporary"),
     RESET_PASSWORD("reset_password"),

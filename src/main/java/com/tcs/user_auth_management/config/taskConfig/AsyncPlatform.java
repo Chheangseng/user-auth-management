@@ -11,7 +11,6 @@ import org.springframework.scheduling.annotation.Async;
 @Retention(RetentionPolicy.RUNTIME)
 @Async("platformTaskExecutor")
 public @interface AsyncPlatform {
-
     @AliasFor(annotation = Async.class, attribute = "value")
     String value() default "platformTaskExecutor";
 }

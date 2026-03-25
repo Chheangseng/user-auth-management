@@ -1,5 +1,6 @@
 package com.tcs.user_auth_management.repository.specification;
 
+import com.tcs.user_auth_management.model.entity.user.UserAuth_;
 import com.tcs.user_auth_management.model.entity.user.UserSession;
 import com.tcs.user_auth_management.model.entity.user.UserSession_;
 import java.time.Instant;
@@ -15,6 +16,6 @@ public class UserSessionSpec {
             })
         .where(
             (from, criteriaBuilder) ->
-                criteriaBuilder.equal(from.get(UserSession_.userAuth), userAuthId));
+                criteriaBuilder.equal(from.get(UserSession_.userAuth).get(UserAuth_.id), userAuthId));
   }
 }

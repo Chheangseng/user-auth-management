@@ -77,4 +77,27 @@ public class UserSessionService {
         .orElseThrow(
             () -> new ApiExceptionStatusException("Invalid Jwt token", HttpStatus.BAD_REQUEST));
   }
+
+  public UserSession verifyUserSession(UUID sessionId, UUID jwtId) {
+    var userSession =
+        repository
+            .findById(sessionId)
+            .orElseThrow(
+                () -> new ApiExceptionStatusException("Invalid Jwt token", HttpStatus.BAD_REQUEST));
+    // Check if session is revoked
+    if (userSession.isInvoked()) {
+      throw new ApiExceptionStatusException("Session has been revoked", HttpStatus.BAD_REQUEST);
+    }
+
+    // Check if JWT ID matches
+    if (!jwtId.equals(userSession.getJwtTokenId())) {
+      throw new ApiExceptionStatusException("Invalid JWT token ID", HttpStatus.BAD_REQUEST);
+    }
+
+    // Check if session has expired
+    if (userSession.getExpiryDate().isBefore(Instant.now())) {
+      throw new ApiExceptionStatusException("Session has expired", HttpStatus.BAD_REQUEST);
+    }
+    return userSession;
+  }
 }

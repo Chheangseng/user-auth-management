@@ -36,7 +36,8 @@ public class TokenJwtService {
 
   private String refreshToken(UserAuth userAuth, UserSession session, Instant now) {
     JwtClaimsSet claims =
-        DtoJwtClaim.baseClaim(
+        DtoJwtClaim.baseClaimSessionId(
+                session.getId().toString(),
                 session.getJwtTokenId().toString(),
                 userAuth.getId().toString(),
                 JwtTokenType.REFRESH)
@@ -48,7 +49,8 @@ public class TokenJwtService {
 
   private String accessToken(UserAuth userAuth, UserSession session, Instant now) {
     JwtClaimsSet claims =
-        DtoJwtClaim.baseClaim(
+        DtoJwtClaim.baseClaimSessionId(
+                session.getId().toString(),
                 session.getJwtTokenId().toString(),
                 userAuth.getId().toString(),
                 JwtTokenType.REFRESH)

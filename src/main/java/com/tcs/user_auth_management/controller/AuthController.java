@@ -17,10 +17,10 @@ import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@RequestMapping("/api/public/auth")
+@RequestMapping("/api/auth")
 @AllArgsConstructor
 @RestController
-@Tag(name = "Authentication", description = "APIs for user authentication and authorization")
+@Tag(name = "Authentication", description = "APIs for user authentication")
 public class AuthController {
 
   private final AuthService authService;

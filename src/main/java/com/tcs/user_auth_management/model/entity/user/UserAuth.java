@@ -1,10 +1,8 @@
 package com.tcs.user_auth_management.model.entity.user;
 
-import com.tcs.user_auth_management.emuns.Role;
 import com.tcs.user_auth_management.model.entity.common.BaseEntityUUID;
+import com.tcs.user_auth_management.model.entity.user.authorization.Role;
 import jakarta.persistence.*;
-import java.util.HashSet;
-import java.util.Set;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -26,28 +24,17 @@ public class UserAuth extends BaseEntityUUID {
   @Column(unique = true, nullable = false)
   private String email;
 
-  @ElementCollection(targetClass = Role.class, fetch = FetchType.LAZY)
-  @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
-  @Enumerated(EnumType.STRING)
-  private Set<Role> roles = new HashSet<>();
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(
+      name = "role_id",
+      referencedColumnName = "id",
+      foreignKey = @ForeignKey(name = "fk_role"))
+  private Role role;
 
-  private boolean activate = true;
+  private boolean enabled = true;
 
   private boolean emailVerified = false;
 
   @Column(nullable = false, columnDefinition = "int default 0")
   private int risk = 0;
-
-  @OneToMany(
-      fetch = FetchType.LAZY,
-      cascade = {CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH},
-      mappedBy = "userAuth",
-      orphanRemoval = true)
-  private Set<UserSession> userSessions = new HashSet<>();
-
-  public void addRole(Role role) {
-    if (roles != null) {
-      roles.add(role);
-    }
-  }
 }
