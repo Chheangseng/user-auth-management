@@ -4,6 +4,12 @@ application:
   title: 'User Management System'
   version: '1.0.0'
 spring:
+  aot:
+    enabled: true
+    repositories:
+      enabled: true
+      metadata:
+        enabled: true
   threads:
     virtual:
       enabled: true
@@ -31,6 +37,11 @@ spring:
       ddl-auto: update
     properties:
       hibernate:
+        bytecode:
+          use_reflection_optimizer: true
+        jdbc:
+          lob:
+            non_contextual_creation: true
         generate_statistics: true
         #value for using mySql = org.hibernate.dialect.MySQLDialect
         #value for using postgres  = org.hibernate.dialect.PostgreSQLDialect
@@ -65,9 +76,3 @@ rsa-key:
 mail-config-properties:
   mail-host: ${MAIL_SENDER}
   mail-secret: ${MAIL_PASSWORD}
-
-springdoc:
-  api-docs:
-    enabled: true
-  swagger-ui:
-    enabled: true

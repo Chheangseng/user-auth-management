@@ -7,6 +7,8 @@ import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 
+import java.util.UUID;
+
 public class ResourceHints implements RuntimeHintsRegistrar {
 
   @Override
@@ -25,5 +27,6 @@ public class ResourceHints implements RuntimeHintsRegistrar {
     hints.reflection().registerType(Network.class,
             MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
     hints.proxies().registerJdkProxy(HttpServletRequest.class);
+    hints.reflection().registerType(UUID[].class);
   }
 }

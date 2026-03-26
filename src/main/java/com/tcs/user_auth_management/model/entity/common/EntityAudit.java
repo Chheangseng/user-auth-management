@@ -7,6 +7,7 @@ import jakarta.persistence.PreUpdate;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -16,7 +17,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 @Setter
 @MappedSuperclass
 public abstract class EntityAudit {
-  @CreatedDate
+  @CreationTimestamp
   @Column(name = "created_at", updatable = false)
   private Instant createdAt;
 

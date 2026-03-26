@@ -1,5 +1,6 @@
 package com.tcs.user_auth_management.service;
 
+import com.tcs.user_auth_management.config.taskConfig.VirtualExecutor;
 import com.tcs.user_auth_management.emuns.AuditLogEvent;
 import com.tcs.user_auth_management.emuns.JwtTokenType;
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
@@ -21,13 +22,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import lombok.AllArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.DisabledException;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -45,10 +42,10 @@ public class AuthService {
   private final UserAuthMapper userAuthMapper;
   private final UserActivityService activityService;
   private final HttpServletRequest request;
-  private final Executor executor;
   private final UserSessionService userSessionService;
   private final OneTimeTokenService oneTimeTokenService;
   private final TokenJwtVerifyService jwtVerifyService;
+  private final VirtualExecutor executor;
 
   @Transactional
   public DtoJwtTokenResponse loginUser(DtoUserLogin login) {
@@ -86,8 +83,7 @@ public class AuthService {
     var user =
         repository
             .findByIdWithRole(userId)
-            .orElseThrow(
-                () -> new UsernameNotFoundException("Invalid user") {});
+            .orElseThrow(() -> new UsernameNotFoundException("Invalid user") {});
     if (!user.isEnabled()) {
       throw new DisabledException("This account have been disable");
     }
