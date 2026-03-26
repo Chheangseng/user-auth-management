@@ -25,6 +25,10 @@ import java.util.concurrent.Executor;
 import lombok.AllArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
@@ -83,10 +87,9 @@ public class AuthService {
         repository
             .findByIdWithRole(userId)
             .orElseThrow(
-                () -> new ApiExceptionStatusException("Invalid user", HttpStatus.NOT_FOUND));
+                () -> new UsernameNotFoundException("Invalid user") {});
     if (!user.isEnabled()) {
-      throw new ApiExceptionStatusException(
-          "This account have been disable", HttpStatus.UNAUTHORIZED);
+      throw new DisabledException("This account have been disable");
     }
     return new UserSecurity(user, jwtId, sessionId);
   }

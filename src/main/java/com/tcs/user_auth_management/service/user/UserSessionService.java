@@ -13,6 +13,7 @@ import java.util.UUID;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -76,8 +77,7 @@ public class UserSessionService {
     var userSession = getUserSessionBySessionId(sessionId);
     if (Objects.nonNull(userId) && !userId.equals(userSession.getUserAuth().getId())) {
       throw new ApiExceptionStatusException(
-              "Cannot invoke session belonging to another user",
-              HttpStatus.UNAUTHORIZED);
+          "Cannot invoke session belonging to another user", HttpStatus.UNAUTHORIZED);
     }
     userSession.setInvoked(true);
     userSession.setInvokedTime(Instant.now());
@@ -98,9 +98,8 @@ public class UserSessionService {
   public UserSession verifyUserSession(UUID sessionId, UUID jwtId) {
     var userSession = getUserSessionBySessionId(sessionId);
     validateSession(userSession);
-    // Check if JWT ID matches
     if (!jwtId.equals(userSession.getJwtTokenId())) {
-      throw new ApiExceptionStatusException("Invalid JWT token ID", HttpStatus.BAD_REQUEST);
+      throw new BadCredentialsException("Invalid JWT token ID");
     }
 
     return userSession;
@@ -116,11 +115,11 @@ public class UserSessionService {
   public void validateSession(UserSession userSession) {
     // Check if session has expired
     if (userSession.getExpiryDate().isBefore(Instant.now())) {
-      throw new ApiExceptionStatusException("Session has expired", HttpStatus.BAD_REQUEST);
+      throw new BadCredentialsException("Session has expired");
     }
     // Check if session is revoked
     if (userSession.isInvoked()) {
-      throw new ApiExceptionStatusException("Session has been revoked", HttpStatus.BAD_REQUEST);
+      throw new BadCredentialsException("Session has been revoked");
     }
   }
 }
