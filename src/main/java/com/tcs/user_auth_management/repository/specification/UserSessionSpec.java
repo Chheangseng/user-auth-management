@@ -8,7 +8,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.domain.UpdateSpecification;
 
 public class UserSessionSpec {
-  public  static UpdateSpecification<UserSession> invokeAllSessionByUserAuthId(UUID userAuthId) {
+  public static UpdateSpecification<UserSession> invokeAllSessionByUserAuthId(UUID userAuthId) {
     return UpdateSpecification.<UserSession>update(
             (root, update, criteriaBuilder) -> {
               update.set(root.get(UserSession_.invoked), true);
@@ -16,6 +16,7 @@ public class UserSessionSpec {
             })
         .where(
             (from, criteriaBuilder) ->
-                criteriaBuilder.equal(from.get(UserSession_.userAuth).get(UserAuth_.id), userAuthId));
+                criteriaBuilder.equal(
+                    from.get(UserSession_.userAuth).get(UserAuth_.id), userAuthId));
   }
 }

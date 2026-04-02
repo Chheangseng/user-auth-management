@@ -39,4 +39,8 @@ public class PaginationEntityResponse<T> {
     this.total = total;
     this.hasNext = hasNext;
   }
+
+  public static <T> PaginationEntityResponse<T> toResponse(Page<T> page){
+    return new PaginationEntityResponse<>(page);
+  }
 }

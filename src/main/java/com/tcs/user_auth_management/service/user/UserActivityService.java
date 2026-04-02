@@ -2,14 +2,20 @@ package com.tcs.user_auth_management.service.user;
 
 import com.tcs.user_auth_management.emuns.AuditLogEvent;
 import com.tcs.user_auth_management.model.dto.DtoUserRequestInfo;
+import com.tcs.user_auth_management.model.dto.param.AuditLogSelfRequestParam;
+import com.tcs.user_auth_management.model.dto.user.DtoAuditLog;
 import com.tcs.user_auth_management.model.entity.AuditLog;
+import com.tcs.user_auth_management.model.entity.user.UserSecurity;
+import com.tcs.user_auth_management.model.mapper.AuditLogMapper;
 import com.tcs.user_auth_management.repository.AuditLogRepository;
 import com.tcs.user_auth_management.repository.UserAuthRepository;
-import java.util.UUID;
-
+import com.tcs.user_auth_management.repository.specification.AuditLogSpec;
+import com.tcs.user_auth_management.util.pagination.PaginationEntityResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +26,15 @@ public class UserActivityService {
   private final AuditLogRepository repository;
   private final UserAuthRepository authRepository;
   private final HttpServletRequest request;
+  private final AuditLogMapper logMapper;
+
+  public PaginationEntityResponse<DtoAuditLog> pageSelfAudit(AuditLogSelfRequestParam param) {
+    return PaginationEntityResponse.toResponse(repository
+        .findAll(
+            AuditLogSpec.filterWithUserId(param, UserSecurity.getRequiredCurrentUser().getUserId()),
+            param.toPageable())
+        .map(logMapper::toDto));
+  }
 
   public void saveAudit(DtoUserRequestInfo request, UUID userAuthId, AuditLogEvent event) {
     AuditLog auditLog = new AuditLog();

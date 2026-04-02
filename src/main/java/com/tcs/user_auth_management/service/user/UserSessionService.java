@@ -6,6 +6,7 @@ import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import com.tcs.user_auth_management.model.entity.user.UserSession;
 import com.tcs.user_auth_management.repository.UserSessionRepository;
 import com.tcs.user_auth_management.repository.specification.UserSessionSpec;
+import com.tcs.user_auth_management.util.pagination.PaginationEntityResponse;
 import com.tcs.user_auth_management.util.pagination.PaginationParam;
 import java.time.Instant;
 import java.util.Objects;
@@ -22,9 +23,9 @@ public class UserSessionService {
   private final UserSessionRepository repository;
   private final UserRequestInfoService requestInfoService;
 
-  public Page<DtoUserSession> userSessionPage(PaginationParam pagination) {
+  public PaginationEntityResponse<DtoUserSession> userSessionPage(PaginationParam pagination) {
     var response = repository.findAll(pagination.toPageable());
-    return response.map(DtoUserSession::new);
+    return PaginationEntityResponse.toResponse(response.map(DtoUserSession::new));
   }
 
   public UserSession createSession(UserAuth userAuth, long expireInSec) {

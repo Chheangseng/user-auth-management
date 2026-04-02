@@ -35,8 +35,7 @@ public class SelfSessionController {
   @GetMapping("/sessions")
   public ResponseEntity<PaginationEntityResponse<DtoUserSession>> pagination(
       @ParameterObject PaginationParam paginationParam) {
-    return ResponseEntity.ok(
-        new PaginationEntityResponse<>(userSessionService.userSessionPage(paginationParam)));
+    return ResponseEntity.ok(userSessionService.userSessionPage(paginationParam));
   }
 
   @PutMapping("/sessions/all/invoke")

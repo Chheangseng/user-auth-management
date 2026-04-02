@@ -1,12 +1,13 @@
 package com.tcs.user_auth_management.controller.user;
 
-import com.tcs.user_auth_management.model.dto.DtoUserSession;
+import com.tcs.user_auth_management.model.dto.param.AuditLogSelfRequestParam;
+import com.tcs.user_auth_management.model.dto.user.DtoAuditLog;
 import com.tcs.user_auth_management.model.dto.user.DtoChangePassword;
 import com.tcs.user_auth_management.model.entity.user.UserSecurity;
 import com.tcs.user_auth_management.service.AuthService;
+import com.tcs.user_auth_management.service.user.UserActivityService;
 import com.tcs.user_auth_management.service.user.UserSessionService;
 import com.tcs.user_auth_management.util.pagination.PaginationEntityResponse;
-import com.tcs.user_auth_management.util.pagination.PaginationParam;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -16,15 +17,11 @@ import lombok.AllArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.UUID;
 
 @AllArgsConstructor
 @RestController
@@ -33,16 +30,22 @@ import java.util.UUID;
 public class SelfProfileController {
   private final AuthService authService;
   private final UserSessionService userSessionService;
+  private final UserActivityService userActivityService;
 
   @GetMapping
   public ResponseEntity<UserSecurity> userSecurity() {
     return ResponseEntity.ok(UserSecurity.getRequiredCurrentUser());
   }
 
+  @GetMapping("/audit-logs")
+  public ResponseEntity<PaginationEntityResponse<DtoAuditLog>> pageAudit(
+      @ParameterObject AuditLogSelfRequestParam param) {
+    return ResponseEntity.ok(userActivityService.pageSelfAudit(param));
+  }
+
   @PostMapping("/logout")
   public ResponseEntity<Void> logout() {
-    userSessionService.invokeSession(
-            UserSecurity.getRequiredCurrentUser().getJwtId());
+    userSessionService.invokeSession(UserSecurity.getRequiredCurrentUser().getJwtId());
     return ResponseEntity.ok().build();
   }
 

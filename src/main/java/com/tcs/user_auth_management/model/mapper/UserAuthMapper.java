@@ -11,5 +11,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
     imports = {PasswordEncoder.class})
 public interface UserAuthMapper {
   @Mapping(target = "password", expression = "java(passwordEncoder.encode(register.password()))")
+  @Mapping(source = "register.email", target = "recoveryEmail")
   UserAuth toEntity(DtoUserRegister register, PasswordEncoder passwordEncoder);
 }
