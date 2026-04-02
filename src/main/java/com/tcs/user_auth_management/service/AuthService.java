@@ -76,7 +76,8 @@ public class AuthService {
     user.setPassword(passwordEncoder.encode(changePassword.newPassword()));
     repository.save(user);
     DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
-    activityService.saveAudit(requestInfo, user.getId(), AuditLogEvent.PASSWORD_RESET_BY_OLD_PASSWORD);
+    activityService.saveAudit(
+        requestInfo, user.getId(), AuditLogEvent.PASSWORD_RESET_BY_OLD_PASSWORD);
   }
 
   public UserSecurity authenticationCheck(Jwt source) {
@@ -133,8 +134,11 @@ public class AuthService {
     activityService.saveAudit(requestInfo, userAuth.getId(), AuditLogEvent.VERIFY_EMAIL);
   }
 
+  @Transactional
   public void sendVerifyEmailToken(UUID userId) {
     UserAuth userAuth = isUserActive(userId);
+    DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
+    activityService.saveAudit(requestInfo, userAuth.getId(), AuditLogEvent.SEND_VERIFY_EMAIL);
     mailService.asyncSendEmailVerify(
         userAuth.getUsername(),
         userAuth.getRecoveryEmail(),
@@ -151,16 +155,16 @@ public class AuthService {
     return tokenService.generateToken(userAuth, session);
   }
 
+  @Transactional
   public void forgotPassword(String email) {
-    repository
-        .findByRecoveryEmail(email)
-        .ifPresent(
-            userAuth -> {
-              mailService.asyncSendForgotPassword(
-                  email, userAuth.getUsername(), oneTimeTokenService.resetToken(userAuth));
-              DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
-              activityService.saveAudit(requestInfo, userAuth.getId(), AuditLogEvent.SEND_FORGOT_PASSWORD_EMAIL);
-            });
+    var optionalUserAuth = repository.findByRecoveryEmail(email);
+    if (optionalUserAuth.isEmpty()) return;
+    var userAuth = optionalUserAuth.get();
+    DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
+    activityService.saveAudit(
+        requestInfo, userAuth.getId(), AuditLogEvent.SEND_FORGOT_PASSWORD_EMAIL);
+    mailService.asyncSendForgotPassword(
+        email, userAuth.getUsername(), oneTimeTokenService.resetToken(userAuth));
   }
 
   public UserAuth authenticationUsernameAndPassword(
@@ -210,7 +214,8 @@ public class AuthService {
             () -> repository.existsByUsername(register.username()), executor);
 
     CompletableFuture<Boolean> emailExistsFuture =
-        CompletableFuture.supplyAsync(() -> repository.existsByRecoveryEmail(register.email()), executor);
+        CompletableFuture.supplyAsync(
+            () -> repository.existsByRecoveryEmail(register.email()), executor);
 
     CompletableFuture.allOf(usernameExistsFuture, emailExistsFuture).join();
 
