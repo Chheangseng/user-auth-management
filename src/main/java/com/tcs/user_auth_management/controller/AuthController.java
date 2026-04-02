@@ -44,7 +44,7 @@ public class AuthController {
           @ApiResponse(responseCode = "400", description = "Invalid refresh token")
   })
   public ResponseEntity<Void> logout(@RequestParam String refreshToken) {
-    authService.logout(refreshToken);
+    authService.logout(refreshToken,false);
     return ResponseEntity.ok().build();
   }
 
@@ -56,7 +56,7 @@ public class AuthController {
           @ApiResponse(responseCode = "400", description = "Invalid refresh token")
   })
   public ResponseEntity<Void> logoutAll(@RequestParam String refreshToken) {
-    authService.logoutAll(refreshToken);
+    authService.logout(refreshToken,true);
     return ResponseEntity.ok().build();
   }
 

@@ -22,7 +22,7 @@ public class UserAuth extends BaseEntityUUID {
   private String password;
 
   @Column(unique = true, nullable = false)
-  private String email;
+  private String recoveryEmail;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(
@@ -36,5 +36,5 @@ public class UserAuth extends BaseEntityUUID {
   private boolean emailVerified = false;
 
   @Column(nullable = false, columnDefinition = "int default 0")
-  private int risk = 0;
+  private int riskScore  = 0;
 }

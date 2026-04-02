@@ -62,6 +62,8 @@ public class AuthService {
     repository.save(userAuth);
     var session =
         userSessionService.createSession(userAuth, tokenService.getExpireInSecondsRefresh());
+    DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
+    activityService.saveAudit(requestInfo, userAuth.getId(), AuditLogEvent.USER_REGISTRATION);
     return tokenService.generateToken(userAuth, session);
   }
 
@@ -73,6 +75,8 @@ public class AuthService {
     }
     user.setPassword(passwordEncoder.encode(changePassword.newPassword()));
     repository.save(user);
+    DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
+    activityService.saveAudit(requestInfo, user.getId(), AuditLogEvent.PASSWORD_RESET_BY_OLD_PASSWORD);
   }
 
   public UserSecurity authenticationCheck(Jwt source) {
@@ -90,31 +94,20 @@ public class AuthService {
     return new UserSecurity(user, jwtId, sessionId);
   }
 
-  public void logout(String refreshToken) {
-    auditLogoutUserAccount(refreshToken);
-    CompletableFuture.runAsync(
-        () -> {
-          var jwt = jwtVerifyService.verifyToken(refreshToken, JwtTokenType.REFRESH);
-          userSessionService.invokeSession(DtoJwtClaim.getJwtId(jwt));
-        },
-        executor);
-  }
-
-  public void logoutAll(String refreshToken) {
-    auditLogoutUserAccount(refreshToken);
-    CompletableFuture.runAsync(
-        () -> {
-          var jwt = jwtVerifyService.verifyToken(refreshToken, JwtTokenType.REFRESH);
-          userSessionService.invokeSessionAllByUserAuthId(DtoJwtClaim.getUserId(jwt));
-        },
-        executor);
-  }
-
-  private void auditLogoutUserAccount(String refreshToken) {
+  @Transactional
+  public void logout(String refreshToken, boolean logoutAll) {
     Jwt jwt = jwtVerifyService.verifyToken(refreshToken, JwtTokenType.REFRESH);
     UserAuth userAuth = isUserActive(DtoJwtClaim.getUserId(jwt));
+
     DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
-    activityService.asyncSaveAudit(requestInfo, userAuth.getId(), AuditLogEvent.LOGOUT);
+
+    if (logoutAll) {
+      userSessionService.invokeSessionAllByUserAuthId(DtoJwtClaim.getUserId(jwt));
+      activityService.saveAudit(requestInfo, userAuth.getId(), AuditLogEvent.LOGOUT_ALL_SESSION);
+    } else {
+      userSessionService.invokeSession(DtoJwtClaim.getJwtId(jwt));
+      activityService.saveAudit(requestInfo, userAuth.getId(), AuditLogEvent.LOGOUT);
+    }
   }
 
   @Transactional
@@ -126,6 +119,8 @@ public class AuthService {
     userAuth.setPassword(passwordEncoder.encode(resetPassword.newPassword()));
     userAuth.setEmailVerified(true);
     repository.save(userAuth);
+    DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
+    activityService.saveAudit(requestInfo, userAuth.getId(), AuditLogEvent.PASSWORD_RESET_BY_EMAIL);
   }
 
   @Transactional
@@ -134,13 +129,15 @@ public class AuthService {
     UserAuth userAuth = isUserActive(DtoJwtClaim.getUserId(jwt));
     userAuth.setEmailVerified(true);
     repository.save(userAuth);
+    DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
+    activityService.saveAudit(requestInfo, userAuth.getId(), AuditLogEvent.VERIFY_EMAIL);
   }
 
   public void sendVerifyEmailToken(UUID userId) {
     UserAuth userAuth = isUserActive(userId);
     mailService.asyncSendEmailVerify(
         userAuth.getUsername(),
-        userAuth.getEmail(),
+        userAuth.getRecoveryEmail(),
         oneTimeTokenService.verifyEmailToken(userAuth));
   }
 
@@ -156,11 +153,13 @@ public class AuthService {
 
   public void forgotPassword(String email) {
     repository
-        .findByEmail(email)
+        .findByRecoveryEmail(email)
         .ifPresent(
             userAuth -> {
               mailService.asyncSendForgotPassword(
                   email, userAuth.getUsername(), oneTimeTokenService.resetToken(userAuth));
+              DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
+              activityService.saveAudit(requestInfo, userAuth.getId(), AuditLogEvent.SEND_FORGOT_PASSWORD_EMAIL);
             });
   }
 
@@ -172,7 +171,7 @@ public class AuthService {
       throw new ApiExceptionStatusException(
           "Invalid username or password.", HttpStatus.UNAUTHORIZED);
     }
-    activityService.asyncSaveAudit(requestInfo, user.getId(), AuditLogEvent.LOGOUT);
+    activityService.asyncSaveAudit(requestInfo, user.getId(), AuditLogEvent.LOGIN_SUCCESS);
     return user;
   }
 
@@ -211,7 +210,7 @@ public class AuthService {
             () -> repository.existsByUsername(register.username()), executor);
 
     CompletableFuture<Boolean> emailExistsFuture =
-        CompletableFuture.supplyAsync(() -> repository.existsByEmail(register.email()), executor);
+        CompletableFuture.supplyAsync(() -> repository.existsByRecoveryEmail(register.email()), executor);
 
     CompletableFuture.allOf(usernameExistsFuture, emailExistsFuture).join();
 

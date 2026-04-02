@@ -15,9 +15,9 @@ public interface UserAuthRepository extends JpaRepository<UserAuth, UUID> {
 
   boolean existsByUsername(String username);
 
-  Optional<UserAuth> findByEmail(String email);
+  Optional<UserAuth> findByRecoveryEmail(String recoveryEmail);
 
-  boolean existsByEmail(String email);
+  boolean existsByRecoveryEmail(String email);
 
   @Query("SELECT u FROM UserAuth u LEFT JOIN FETCH u.role WHERE u.id = :id")
   Optional<UserAuth> findByIdWithRole(@Param("id") UUID id);
