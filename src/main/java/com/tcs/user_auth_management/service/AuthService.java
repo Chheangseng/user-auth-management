@@ -88,7 +88,7 @@ public class AuthService {
     var user =
         repository
             .findByIdWithRole(userId)
-            .orElseThrow(() -> new UsernameNotFoundException("Invalid user") {});
+            .orElseThrow(() -> new UsernameNotFoundException("Invalid user"));
     if (!user.isEnabled()) {
       throw new DisabledException("This account have been disable");
     }
@@ -169,7 +169,7 @@ public class AuthService {
 
   public UserAuth authenticationUsernameAndPassword(
       DtoUserLogin login, DtoUserRequestInfo requestInfo) {
-    var user = this.isUserActiveByUsername(login.username());
+    var user = this.isUserActiveByUsernameWithRole(login.username());
     if (!passwordEncoder.matches(login.password(), user.getPassword())) {
       activityService.asyncSaveAudit(requestInfo, user.getId(), AuditLogEvent.LOGIN_FAILURE);
       throw new ApiExceptionStatusException(
@@ -192,11 +192,11 @@ public class AuthService {
     return user;
   }
 
-  public UserAuth isUserActiveByUsername(String username) {
-    var user = findByUsername(username);
+  public UserAuth isUserActiveByUsernameWithRole(String username) {
+    var user = repository.findByUsernameWithRole(username).orElseThrow(() -> new ApiExceptionStatusException("Invalid username", HttpStatus.UNAUTHORIZED));
     if (!user.isEnabled()) {
       throw new ApiExceptionStatusException(
-          "Your account have been locked.", HttpStatus.UNAUTHORIZED);
+              "Your account have been locked.", HttpStatus.UNAUTHORIZED);
     }
     return user;
   }

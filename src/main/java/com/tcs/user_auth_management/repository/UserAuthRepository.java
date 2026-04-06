@@ -12,6 +12,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface UserAuthRepository extends JpaRepository<UserAuth, UUID> {
   Optional<UserAuth> findByUsername(String username);
+  @Query("SELECT u FROM UserAuth u JOIN FETCH u.role WHERE u.username = :username")
+  Optional<UserAuth> findByUsernameWithRole(@Param("username") String username);
 
   boolean existsByUsername(String username);
 

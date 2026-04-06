@@ -48,7 +48,7 @@ public class AuthController {
     return ResponseEntity.ok().build();
   }
 
-  @PostMapping("logout-all-session")
+  @PostMapping("/logout/all-session")
   @Operation(summary = "Logout from all sessions",
           description = "Invalidate all refresh tokens for the current user.")
   @ApiResponses({

@@ -36,11 +36,7 @@ public class TokenJwtService {
 
   private String refreshToken(UserAuth userAuth, UserSession session, Instant now) {
     JwtClaimsSet claims =
-        DtoJwtClaim.baseClaimSessionId(
-                session.getId().toString(),
-                session.getJwtTokenId().toString(),
-                userAuth.getId().toString(),
-                JwtTokenType.REFRESH)
+        DtoJwtClaim.buildAuthenticationJwtClaim(new DtoJwtClaim.JwtSessionContext(userAuth,session,JwtTokenType.REFRESH))
             .issuedAt(now)
             .expiresAt(session.getExpiryDate())
             .build();
@@ -49,11 +45,7 @@ public class TokenJwtService {
 
   private String accessToken(UserAuth userAuth, UserSession session, Instant now) {
     JwtClaimsSet claims =
-        DtoJwtClaim.baseClaimSessionId(
-                session.getId().toString(),
-                session.getJwtTokenId().toString(),
-                userAuth.getId().toString(),
-                JwtTokenType.ACCESS_TOKEN)
+            DtoJwtClaim.buildAuthenticationJwtClaim(new DtoJwtClaim.JwtSessionContext(userAuth,session,JwtTokenType.ACCESS_TOKEN))
             .issuedAt(now)
             .expiresAt(now.plusSeconds(expireInSeconds))
             .build();
