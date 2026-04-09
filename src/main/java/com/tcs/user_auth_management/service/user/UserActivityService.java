@@ -12,6 +12,8 @@ import com.tcs.user_auth_management.repository.UserAuthRepository;
 import com.tcs.user_auth_management.repository.specification.AuditLogSpec;
 import com.tcs.user_auth_management.util.pagination.PaginationEntityResponse;
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.util.Optional;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +27,6 @@ import org.springframework.stereotype.Service;
 public class UserActivityService {
   private final AuditLogRepository repository;
   private final UserAuthRepository authRepository;
-  private final HttpServletRequest request;
   private final AuditLogMapper logMapper;
 
   public PaginationEntityResponse<DtoAuditLog> pageSelfAudit(AuditLogSelfRequestParam param) {

@@ -1,12 +1,13 @@
-package com.tcs.user_auth_management.service;
+package com.tcs.user_auth_management.service.user;
 
 import com.tcs.user_auth_management.config.taskConfig.VirtualExecutor;
 import com.tcs.user_auth_management.emuns.AuditLogEvent;
 import com.tcs.user_auth_management.emuns.JwtTokenType;
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
-import com.tcs.user_auth_management.model.dto.DtoJwtClaim;
+import com.tcs.user_auth_management.exception.jwt.JwtInvalidPayloadException;
 import com.tcs.user_auth_management.model.dto.DtoJwtTokenResponse;
 import com.tcs.user_auth_management.model.dto.DtoUserRequestInfo;
+import com.tcs.user_auth_management.model.dto.JwtPayload;
 import com.tcs.user_auth_management.model.dto.user.DtoChangePassword;
 import com.tcs.user_auth_management.model.dto.user.DtoResetPassword;
 import com.tcs.user_auth_management.model.dto.user.DtoUserLogin;
@@ -15,9 +16,10 @@ import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import com.tcs.user_auth_management.model.entity.user.UserSecurity;
 import com.tcs.user_auth_management.model.mapper.UserAuthMapper;
 import com.tcs.user_auth_management.repository.UserAuthRepository;
-import com.tcs.user_auth_management.service.user.UserActivityService;
-import com.tcs.user_auth_management.service.user.UserRequestInfoService;
-import com.tcs.user_auth_management.service.user.UserSessionService;
+import com.tcs.user_auth_management.service.MailService;
+import com.tcs.user_auth_management.service.OneTimeTokenService;
+import com.tcs.user_auth_management.service.TokenJwtService;
+import com.tcs.user_auth_management.service.TokenJwtVerifyService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -81,9 +83,10 @@ public class AuthService {
   }
 
   public UserSecurity authenticationCheck(Jwt source) {
-    UUID sessionId = DtoJwtClaim.getSessionId(source);
-    UUID jwtId = DtoJwtClaim.getJwtId(source);
-    UUID userId = DtoJwtClaim.getUserId(source);
+    var jwtPayload = new JwtPayload(source);
+    UUID sessionId = jwtPayload.getSessionId().orElseThrow(JwtInvalidPayloadException::new);
+    UUID jwtId = jwtPayload.getJwtId();
+    UUID userId = jwtPayload.getUserId();
     userSessionService.verifyUserSession(sessionId, jwtId);
     var user =
         repository
@@ -98,15 +101,16 @@ public class AuthService {
   @Transactional
   public void logout(String refreshToken, boolean logoutAll) {
     Jwt jwt = jwtVerifyService.verifyToken(refreshToken, JwtTokenType.REFRESH);
-    UserAuth userAuth = isUserActive(DtoJwtClaim.getUserId(jwt));
+    var jwtPayload = new JwtPayload(jwt);
+    UserAuth userAuth = isUserActive(jwtPayload.getUserId());
 
     DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
 
     if (logoutAll) {
-      userSessionService.invokeSessionAllByUserAuthId(DtoJwtClaim.getUserId(jwt));
+      userSessionService.invokeSessionAllByUserAuthId(jwtPayload.getUserId());
       activityService.saveAudit(requestInfo, userAuth.getId(), AuditLogEvent.LOGOUT_ALL_SESSION);
     } else {
-      userSessionService.invokeSession(DtoJwtClaim.getJwtId(jwt));
+      userSessionService.invokeSession(jwtPayload.getJwtId());
       activityService.saveAudit(requestInfo, userAuth.getId(), AuditLogEvent.LOGOUT);
     }
   }
@@ -116,7 +120,8 @@ public class AuthService {
     var jwt =
         oneTimeTokenService.useOneTimeToken(
             resetPassword.resetToken(), JwtTokenType.RESET_PASSWORD);
-    UserAuth userAuth = isUserActive(DtoJwtClaim.getUserId(jwt));
+    var jwtPayload = new JwtPayload(jwt);
+    UserAuth userAuth = isUserActive(jwtPayload.getUserId());
     userAuth.setPassword(passwordEncoder.encode(resetPassword.newPassword()));
     userAuth.setEmailVerified(true);
     repository.save(userAuth);
@@ -127,7 +132,8 @@ public class AuthService {
   @Transactional
   public void verifyUserEmail(String verifyToken) {
     var jwt = oneTimeTokenService.useOneTimeToken(verifyToken, JwtTokenType.VERIFY_EMAIL);
-    UserAuth userAuth = isUserActive(DtoJwtClaim.getUserId(jwt));
+    var jwtPayload = new JwtPayload(jwt);
+    UserAuth userAuth = isUserActive(jwtPayload.getUserId());
     userAuth.setEmailVerified(true);
     repository.save(userAuth);
     DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
@@ -148,10 +154,11 @@ public class AuthService {
   @Transactional
   public DtoJwtTokenResponse refreshToken(String refreshToken) {
     var jwt = jwtVerifyService.verifyToken(refreshToken, JwtTokenType.REFRESH);
-    UserAuth userAuth = isUserActive(DtoJwtClaim.getUserId(jwt));
+    var jwtPayload = new JwtPayload(jwt);
+    UserAuth userAuth = isUserActive(jwtPayload.getUserId());
     var session =
         userSessionService.rotateSessionToken(
-            DtoJwtClaim.getJwtId(jwt), tokenService.getExpireInSecondsRefresh());
+                jwtPayload.getJwtId(), tokenService.getExpireInSecondsRefresh());
     return tokenService.generateToken(userAuth, session);
   }
 

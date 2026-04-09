@@ -1,8 +1,9 @@
 package com.tcs.user_auth_management.service;
 
 import com.tcs.user_auth_management.emuns.JwtTokenType;
+import com.tcs.user_auth_management.emuns.UserType;
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
-import com.tcs.user_auth_management.model.dto.DtoJwtClaim;
+import com.tcs.user_auth_management.model.dto.JwtPayload;
 import com.tcs.user_auth_management.model.entity.OneTimeToken;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import com.tcs.user_auth_management.repository.OneTimeTokenRepository;
@@ -50,13 +51,9 @@ public class OneTimeTokenService {
     Instant expireTime = now.plusSeconds(tokenExpirySeconds);
 
     var oneTimeToken = this.createOneTimeToken(userAuth.getId(), expireTime);
-
-    JwtClaimsSet claims =
-        DtoJwtClaim.baseClaim(
-                oneTimeToken.getId().toString(), userAuth.getId().toString(), tokenType)
-            .issuedAt(now)
-            .expiresAt(expireTime)
-            .build();
+    var jwtPayload =
+        new JwtPayload(userAuth.getId(), oneTimeToken.getId(), tokenType, UserType.NORMAL_USER);
+    JwtClaimsSet claims = jwtPayload.toJwtClaim().issuedAt(now).expiresAt(expireTime).build();
 
     return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
   }

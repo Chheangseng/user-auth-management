@@ -1,6 +1,6 @@
 package com.tcs.user_auth_management.config.security.jwt;
 
-import com.tcs.user_auth_management.service.AuthService;
+import com.tcs.user_auth_management.service.user.AuthService;
 import lombok.AllArgsConstructor;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;

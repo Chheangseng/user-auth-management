@@ -4,7 +4,9 @@ import com.tcs.user_auth_management.emuns.JwtTokenType;
 import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
 import java.util.Objects;
 
-import com.tcs.user_auth_management.model.dto.DtoJwtClaim;
+import com.tcs.user_auth_management.exception.jwt.JwtInvalidPayloadException;
+import com.tcs.user_auth_management.exception.jwt.JwtInvalidTokenTypeException;
+import com.tcs.user_auth_management.model.dto.JwtPayload;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -26,7 +28,7 @@ public class TokenJwtVerifyService {
       var decode = decoder.decode(token);
       var typeJwt = validateType(decode);
       if (Objects.nonNull(type) && !typeJwt.equals(type)) {
-        throw new ApiExceptionStatusException("Invalid Jwt token type", HttpStatus.UNAUTHORIZED);
+        throw new JwtInvalidTokenTypeException();
       }
       return decode;
     } catch (JwtException e) {
@@ -38,8 +40,8 @@ public class TokenJwtVerifyService {
 
   private JwtTokenType validateType(Jwt jwt) {
     if (Objects.isNull(jwt))
-      throw new ApiExceptionStatusException("Incorrect Token Type or format", 401);
-    return JwtTokenType.fromType(DtoJwtClaim.getTokenType(jwt))
-        .orElseThrow(() -> new ApiExceptionStatusException("Incorrect Token Type or format", 401));
+      throw new JwtInvalidPayloadException();
+    return JwtTokenType.fromType(JwtPayload.jwtType(jwt))
+        .orElseThrow(JwtInvalidPayloadException::new);
   }
 }

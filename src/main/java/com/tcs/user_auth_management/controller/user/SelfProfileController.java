@@ -4,7 +4,7 @@ import com.tcs.user_auth_management.model.dto.param.AuditLogSelfRequestParam;
 import com.tcs.user_auth_management.model.dto.user.DtoAuditLog;
 import com.tcs.user_auth_management.model.dto.user.DtoChangePassword;
 import com.tcs.user_auth_management.model.entity.user.UserSecurity;
-import com.tcs.user_auth_management.service.AuthService;
+import com.tcs.user_auth_management.service.user.AuthService;
 import com.tcs.user_auth_management.service.user.UserActivityService;
 import com.tcs.user_auth_management.service.user.UserSessionService;
 import com.tcs.user_auth_management.util.pagination.PaginationEntityResponse;

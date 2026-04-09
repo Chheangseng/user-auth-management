@@ -1,8 +1,9 @@
 package com.tcs.user_auth_management.service;
 
 import com.tcs.user_auth_management.emuns.JwtTokenType;
-import com.tcs.user_auth_management.model.dto.DtoJwtClaim;
+import com.tcs.user_auth_management.emuns.UserType;
 import com.tcs.user_auth_management.model.dto.DtoJwtTokenResponse;
+import com.tcs.user_auth_management.model.dto.JwtPayload;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import com.tcs.user_auth_management.model.entity.user.UserSession;
 import java.time.Instant;
@@ -35,20 +36,28 @@ public class TokenJwtService {
   }
 
   private String refreshToken(UserAuth userAuth, UserSession session, Instant now) {
+    var jwtPayload =
+        new JwtPayload(
+            userAuth.getId(),
+            session.getJwtTokenId(),
+            session.getId(),
+            JwtTokenType.REFRESH,
+            UserType.NORMAL_USER);
     JwtClaimsSet claims =
-        DtoJwtClaim.buildAuthenticationJwtClaim(new DtoJwtClaim.JwtSessionContext(userAuth,session,JwtTokenType.REFRESH))
-            .issuedAt(now)
-            .expiresAt(session.getExpiryDate())
-            .build();
+        jwtPayload.toJwtClaim().issuedAt(now).expiresAt(session.getExpiryDate()).build();
     return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
   }
 
   private String accessToken(UserAuth userAuth, UserSession session, Instant now) {
+    var jwtPayload =
+        new JwtPayload(
+            userAuth.getId(),
+            session.getJwtTokenId(),
+            session.getId(),
+            JwtTokenType.REFRESH,
+            UserType.NORMAL_USER);
     JwtClaimsSet claims =
-            DtoJwtClaim.buildAuthenticationJwtClaim(new DtoJwtClaim.JwtSessionContext(userAuth,session,JwtTokenType.ACCESS_TOKEN))
-            .issuedAt(now)
-            .expiresAt(now.plusSeconds(expireInSeconds))
-            .build();
+        jwtPayload.toJwtClaim().issuedAt(now).expiresAt(now.plusSeconds(expireInSeconds)).build();
     return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
   }
 

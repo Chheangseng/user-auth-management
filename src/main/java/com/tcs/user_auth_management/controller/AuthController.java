@@ -5,7 +5,7 @@ import com.tcs.user_auth_management.model.dto.user.DtoEmail;
 import com.tcs.user_auth_management.model.dto.user.DtoResetPassword;
 import com.tcs.user_auth_management.model.dto.user.DtoUserLogin;
 import com.tcs.user_auth_management.model.dto.user.DtoUserRegister;
-import com.tcs.user_auth_management.service.AuthService;
+import com.tcs.user_auth_management.service.user.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
