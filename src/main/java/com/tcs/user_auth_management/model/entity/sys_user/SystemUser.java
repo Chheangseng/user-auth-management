@@ -19,9 +19,10 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Table
+@Table(name = "system_users")
 @Entity
 public class SystemUser extends BaseEntityUUID {
+    @Column(unique = true,nullable = false)
     private String username;
     private String password;
     @Column(unique = true, nullable = false)
@@ -29,10 +30,10 @@ public class SystemUser extends BaseEntityUUID {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
-            name = "role_id",
+            name = "system_role_id",
             referencedColumnName = "id",
-            foreignKey = @ForeignKey(name = "fk_role"))
-    private Role role;
+            foreignKey = @ForeignKey(name = "fk_system_role"))
+    private SystemRole systemRole;
 
     private boolean enabled = true;
 

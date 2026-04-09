@@ -26,11 +26,11 @@ public class SystemRole extends BaseEntityUUID {
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "system_role_permissions",
-            joinColumns = @JoinColumn(name = "role_id"),
-            inverseJoinColumns = @JoinColumn(name = "permission_id")
+            joinColumns = @JoinColumn(name = "system_role_id"),
+            inverseJoinColumns = @JoinColumn(name = "system_permission_id")
     )
-    private Set<SystemPermission> permissions = new HashSet<>();
+    private Set<SystemPermission> systemPermissions = new HashSet<>();
 
-    @OneToMany(mappedBy = "role", fetch = FetchType.LAZY)
-    private Set<UserAuth> users = new HashSet<>();
+    @OneToMany(mappedBy = "systemRole", fetch = FetchType.LAZY)
+    private Set<SystemUser> systemUser = new HashSet<>();
 }
