@@ -40,7 +40,7 @@ public class SelfProfileController {
   @GetMapping("/audit-logs")
   public ResponseEntity<PaginationEntityResponse<DtoAuditLog>> pageAudit(
       @ParameterObject AuditLogSelfRequestParam param) {
-    return ResponseEntity.ok(userActivityService.pageSelfAudit(param));
+    return ResponseEntity.ok(userActivityService.pageByUserId(UserSecurity.getRequiredCurrentUser().getUserId(),param));
   }
 
   @PostMapping("/logout")

@@ -158,7 +158,7 @@ public class AuthService {
     UserAuth userAuth = isUserActive(jwtPayload.getUserId());
     var session =
         userSessionService.rotateSessionToken(
-                jwtPayload.getJwtId(), tokenService.getExpireInSecondsRefresh());
+            jwtPayload.getJwtId(), tokenService.getExpireInSecondsRefresh());
     return tokenService.generateToken(userAuth, session);
   }
 
@@ -200,19 +200,16 @@ public class AuthService {
   }
 
   public UserAuth isUserActiveByUsernameWithRole(String username) {
-    var user = repository.findByUsernameWithRole(username).orElseThrow(() -> new ApiExceptionStatusException("Invalid username", HttpStatus.UNAUTHORIZED));
+    var user =
+        repository
+            .findByUsernameWithRole(username)
+            .orElseThrow(
+                () -> new ApiExceptionStatusException("Invalid username", HttpStatus.UNAUTHORIZED));
     if (!user.isEnabled()) {
       throw new ApiExceptionStatusException(
-              "Your account have been locked.", HttpStatus.UNAUTHORIZED);
+          "Your account have been locked.", HttpStatus.UNAUTHORIZED);
     }
     return user;
-  }
-
-  public UserAuth findByUsername(String username) {
-    return this.repository
-        .findByUsername(username)
-        .orElseThrow(
-            () -> new ApiExceptionStatusException("Invalid username", HttpStatus.UNAUTHORIZED));
   }
 
   private void validateUserDuplication(DtoUserRegister register) {

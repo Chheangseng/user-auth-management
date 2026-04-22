@@ -1,5 +1,6 @@
 package com.tcs.user_auth_management.model.entity.user;
 
+import com.tcs.user_auth_management.emuns.UserType;
 import com.tcs.user_auth_management.model.entity.common.BaseEntityUUID;
 import com.tcs.user_auth_management.model.entity.user.authorization.Role;
 import jakarta.persistence.*;
@@ -37,4 +38,7 @@ public class UserAuth extends BaseEntityUUID {
 
   @Column(nullable = false, columnDefinition = "int default 0")
   private int riskScore  = 0;
+
+  @Enumerated(EnumType.STRING)
+  private UserType type = UserType.NORMAL_USER;
 }

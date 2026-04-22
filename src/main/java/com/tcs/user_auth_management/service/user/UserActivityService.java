@@ -11,13 +11,10 @@ import com.tcs.user_auth_management.repository.AuditLogRepository;
 import com.tcs.user_auth_management.repository.UserAuthRepository;
 import com.tcs.user_auth_management.repository.specification.AuditLogSpec;
 import com.tcs.user_auth_management.util.pagination.PaginationEntityResponse;
-import jakarta.servlet.http.HttpServletRequest;
 
-import java.util.Optional;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -29,10 +26,10 @@ public class UserActivityService {
   private final UserAuthRepository authRepository;
   private final AuditLogMapper logMapper;
 
-  public PaginationEntityResponse<DtoAuditLog> pageSelfAudit(AuditLogSelfRequestParam param) {
+  public PaginationEntityResponse<DtoAuditLog> pageByUserId(UUID userId,AuditLogSelfRequestParam param) {
     return PaginationEntityResponse.toResponse(repository
         .findAll(
-            AuditLogSpec.filterWithUserId(param, UserSecurity.getRequiredCurrentUser().getUserId()),
+            AuditLogSpec.filterWithUserId(param, userId),
             param.toPageable())
         .map(logMapper::toDto));
   }

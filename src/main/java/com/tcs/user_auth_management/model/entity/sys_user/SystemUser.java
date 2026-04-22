@@ -1,14 +1,11 @@
 package com.tcs.user_auth_management.model.entity.sys_user;
 
 import com.tcs.user_auth_management.model.entity.common.BaseEntityUUID;
-import com.tcs.user_auth_management.model.entity.user.authorization.Role;
-import jakarta.persistence.Column;
+import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.ForeignKey;
-import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -22,25 +19,8 @@ import lombok.Setter;
 @Table(name = "system_users")
 @Entity
 public class SystemUser extends BaseEntityUUID {
-    @Column(unique = true,nullable = false)
-    private String username;
-    private String password;
-    @Column(unique = true, nullable = false)
-    private String recoveryEmail;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "system_role_id",
-            referencedColumnName = "id",
-            foreignKey = @ForeignKey(name = "fk_system_role"))
-    private SystemRole systemRole;
-
-    private boolean enabled = true;
-
-    private boolean emailVerified = false;
-
-    @Column(nullable = false, columnDefinition = "int default 0")
-    private int riskScore  = 0;
-
-    private boolean isSuperAdmin = false;
+  private boolean isSuperAdmin = false;
+  @OneToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_auth_id", referencedColumnName = "id", nullable = false)
+  private UserAuth userAuth;
 }
