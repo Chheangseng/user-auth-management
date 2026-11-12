@@ -32,6 +32,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -42,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class OidcTokenService {
   private final OidcClientService clientService;
   private final AuthorizationService authService;
@@ -263,6 +265,10 @@ public class OidcTokenService {
       response.put("token_type", "Bearer");
       return response;
     } catch (JwtException | AppException e) {
+      log.debug("Token introspection determined token is invalid/inactive: {}", e.getMessage());
+      return Map.of("active", false);
+    } catch (Exception e) {
+      log.error("Unexpected error during token introspection: {}", e.getMessage(), e);
       return Map.of("active", false);
     }
   }
@@ -279,9 +285,14 @@ public class OidcTokenService {
       try {
         UUID userId = UUID.fromString(jwt.getSubject());
         activityService.saveAudit(requestInfo, userId, AuditLogEvent.OIDC_TOKEN_REVOKED);
-      } catch (Exception ignored) {}
+      } catch (Exception e) {
+        log.warn("Failed to record audit log for revoked token [userId={}]: {}", jwt.getSubject(), e.getMessage(), e);
+      }
+    } catch (JwtException | AppException e) {
+      // Per RFC 7009, revocation of an invalid/expired token returns HTTP 200 without error
+      log.debug("Token revocation requested for invalid or expired token: {}", e.getMessage());
     } catch (Exception e) {
-      // Per RFC 7009, revocation of an invalid token does not return an error
+      log.error("Unexpected error during token revocation: {}", e.getMessage(), e);
     }
   }
 }

@@ -26,6 +26,14 @@ public class ApiExceptionHandler {
   @ExceptionHandler(AppException.class)
   public ResponseEntity<ErrorResponse> handleAppException(AppException ex, HttpServletRequest request) {
     String traceId = TraceIdUtil.getOrCreateTraceId(request);
+    if (ex.getStatus().is5xxServerError()) {
+      log.error("Server error [code={}, traceId={}, uri={} {}]: {}",
+          ex.getCode(), traceId, request.getMethod(), request.getRequestURI(), ex.getMessage(), ex);
+    } else {
+      log.warn("Application exception [code={}, traceId={}, uri={} {}]: {}",
+          ex.getCode(), traceId, request.getMethod(), request.getRequestURI(), ex.getMessage());
+    }
+
     ErrorResponse response = ErrorResponse.of(
         ex.getCode(),
         ex.getMessage(),
@@ -47,6 +55,9 @@ public class ApiExceptionHandler {
         .map(error -> new ErrorResponse.FieldErrorDetail(error.getField(), error.getDefaultMessage()))
         .toList();
 
+    log.warn("Validation error [traceId={}, uri={} {}]: {} field error(s)",
+        traceId, request.getMethod(), request.getRequestURI(), details.size());
+
     ErrorResponse response = ErrorResponse.of(
         CommonErrorCode.VALIDATION_ERROR.getCode(),
         CommonErrorCode.VALIDATION_ERROR.getMessage(),
@@ -62,6 +73,9 @@ public class ApiExceptionHandler {
   public ResponseEntity<ErrorResponse> handleBadCredentials(
       BadCredentialsException ex, HttpServletRequest request) {
     String traceId = TraceIdUtil.getOrCreateTraceId(request);
+    log.warn("Bad credentials [traceId={}, uri={} {}]: {}",
+        traceId, request.getMethod(), request.getRequestURI(), ex.getMessage());
+
     ErrorResponse response = ErrorResponse.of(
         AuthErrorCode.INVALID_CREDENTIALS.getCode(),
         ex.getMessage() != null ? ex.getMessage() : AuthErrorCode.INVALID_CREDENTIALS.getMessage(),
@@ -76,6 +90,9 @@ public class ApiExceptionHandler {
   public ResponseEntity<ErrorResponse> handleDisabledException(
       DisabledException ex, HttpServletRequest request) {
     String traceId = TraceIdUtil.getOrCreateTraceId(request);
+    log.warn("Account locked/disabled [traceId={}, uri={} {}]: {}",
+        traceId, request.getMethod(), request.getRequestURI(), ex.getMessage());
+
     ErrorResponse response = ErrorResponse.of(
         UserErrorCode.ACCOUNT_LOCKED.getCode(),
         UserErrorCode.ACCOUNT_LOCKED.getMessage(),
@@ -90,6 +107,9 @@ public class ApiExceptionHandler {
   public ResponseEntity<ErrorResponse> handleUsernameNotFound(
       UsernameNotFoundException ex, HttpServletRequest request) {
     String traceId = TraceIdUtil.getOrCreateTraceId(request);
+    log.warn("Username not found [traceId={}, uri={} {}]: {}",
+        traceId, request.getMethod(), request.getRequestURI(), ex.getMessage());
+
     ErrorResponse response = ErrorResponse.of(
         UserErrorCode.USER_NOT_FOUND.getCode(),
         ex.getMessage() != null ? ex.getMessage() : UserErrorCode.USER_NOT_FOUND.getMessage(),
@@ -104,6 +124,9 @@ public class ApiExceptionHandler {
   public ResponseEntity<ErrorResponse> handleAccessDenied(
       AccessDeniedException ex, HttpServletRequest request) {
     String traceId = TraceIdUtil.getOrCreateTraceId(request);
+    log.warn("Access denied [traceId={}, uri={} {}]: {}",
+        traceId, request.getMethod(), request.getRequestURI(), ex.getMessage());
+
     ErrorResponse response = ErrorResponse.of(
         CommonErrorCode.FORBIDDEN.getCode(),
         CommonErrorCode.FORBIDDEN.getMessage(),
@@ -118,6 +141,9 @@ public class ApiExceptionHandler {
   public ResponseEntity<ErrorResponse> handleMethodNotAllowed(
       HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
     String traceId = TraceIdUtil.getOrCreateTraceId(request);
+    log.warn("Method not allowed [traceId={}, method={}, uri={}]: {}",
+        traceId, request.getMethod(), request.getRequestURI(), ex.getMessage());
+
     ErrorResponse response = ErrorResponse.of(
         CommonErrorCode.METHOD_NOT_ALLOWED.getCode(),
         ex.getMessage(),
@@ -132,6 +158,9 @@ public class ApiExceptionHandler {
   public ResponseEntity<ErrorResponse> handleNotFound(
       NoResourceFoundException ex, HttpServletRequest request) {
     String traceId = TraceIdUtil.getOrCreateTraceId(request);
+    log.warn("Resource not found [traceId={}, uri={} {}]: {}",
+        traceId, request.getMethod(), request.getRequestURI(), ex.getMessage());
+
     ErrorResponse response = ErrorResponse.of(
         CommonErrorCode.RESOURCE_NOT_FOUND.getCode(),
         ex.getMessage(),
@@ -145,8 +174,10 @@ public class ApiExceptionHandler {
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ErrorResponse> handleAllUncaughtExceptions(
       Exception ex, HttpServletRequest request) {
-    log.error("CRITICAL UNEXPECTED ERROR: ", ex);
     String traceId = TraceIdUtil.getOrCreateTraceId(request);
+    log.error("CRITICAL UNEXPECTED ERROR [traceId={}, uri={} {}]: {}",
+        traceId, request.getMethod(), request.getRequestURI(), ex.getMessage(), ex);
+
     ErrorResponse response = ErrorResponse.of(
         CommonErrorCode.INTERNAL_SERVER_ERROR.getCode(),
         CommonErrorCode.INTERNAL_SERVER_ERROR.getMessage(),

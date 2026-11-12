@@ -44,22 +44,30 @@ public class UserActivityService {
 
   @Async
   public void asyncSaveAudit(DtoUserRequestInfo request, UUID userAuthId, AuditLogEvent event) {
-    AuditLog auditLog = new AuditLog();
-    auditLog.setUserAgent(request.getUserAgent());
-    auditLog.setUserAuth(authRepository.getReferenceById(userAuthId));
-    auditLog.setLocation(request.getLocation());
-    auditLog.setIpAddress(request.getIp());
-    auditLog.setAuditLogEvent(event);
-    repository.save(auditLog);
+    try {
+      AuditLog auditLog = new AuditLog();
+      auditLog.setUserAgent(request.getUserAgent());
+      auditLog.setUserAuth(authRepository.getReferenceById(userAuthId));
+      auditLog.setLocation(request.getLocation());
+      auditLog.setIpAddress(request.getIp());
+      auditLog.setAuditLogEvent(event);
+      repository.save(auditLog);
+    } catch (Exception e) {
+      log.error("Failed to asynchronously save audit log for event {} and user {}: {}", event, userAuthId, e.getMessage(), e);
+    }
   }
 
   @Async
   public void asyncSaveAudit(DtoUserRequestInfo request, AuditLogEvent event) {
-    AuditLog auditLog = new AuditLog();
-    auditLog.setUserAgent(request.getUserAgent());
-    auditLog.setLocation(request.getLocation());
-    auditLog.setIpAddress(auditLog.getIpAddress());
-    auditLog.setAuditLogEvent(event);
-    repository.save(auditLog);
+    try {
+      AuditLog auditLog = new AuditLog();
+      auditLog.setUserAgent(request.getUserAgent());
+      auditLog.setLocation(request.getLocation());
+      auditLog.setIpAddress(request.getIp());
+      auditLog.setAuditLogEvent(event);
+      repository.save(auditLog);
+    } catch (Exception e) {
+      log.error("Failed to asynchronously save audit log for event {}: {}", event, e.getMessage(), e);
+    }
   }
 }

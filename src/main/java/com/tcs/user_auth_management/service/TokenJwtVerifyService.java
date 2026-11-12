@@ -8,6 +8,7 @@ import com.tcs.user_auth_management.exception.jwt.JwtInvalidTokenTypeException;
 import com.tcs.user_auth_management.model.dto.JwtPayload;
 import java.util.Objects;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class TokenJwtVerifyService {
   private final JwtDecoder decoder;
 
@@ -35,6 +37,7 @@ public class TokenJwtVerifyService {
     } catch (JwtException e) {
       throw new AppException(AuthErrorCode.INVALID_TOKEN, e.getMessage(), e);
     } catch (Exception e) {
+      log.error("Unexpected error during token verification: {}", e.getMessage(), e);
       throw new AppException(AuthErrorCode.INVALID_TOKEN, "Invalid Jwt token", e);
     }
   }

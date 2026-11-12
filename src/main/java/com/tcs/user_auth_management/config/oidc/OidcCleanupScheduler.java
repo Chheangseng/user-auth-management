@@ -17,7 +17,11 @@ public class OidcCleanupScheduler {
   @Scheduled(cron = "0 0 * * * *") // Every hour
   @Transactional
   public void cleanupExpiredCodes() {
-    log.info("Running scheduled cleanup of expired authorization codes at UTC: {}", Instant.now());
-    authorizationCodeRepository.deleteByExpiresAtBefore(Instant.now());
+    try {
+      log.info("Running scheduled cleanup of expired authorization codes at UTC: {}", Instant.now());
+      authorizationCodeRepository.deleteByExpiresAtBefore(Instant.now());
+    } catch (Exception e) {
+      log.error("Unexpected error during scheduled cleanup of expired authorization codes: {}", e.getMessage(), e);
+    }
   }
 }
