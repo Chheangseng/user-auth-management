@@ -1,7 +1,8 @@
 package com.tcs.user_auth_management.service.oidc;
 
 import com.fasterxml.uuid.Generators;
-import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
+import com.tcs.user_auth_management.exception.AppException;
+import com.tcs.user_auth_management.exception.errorcode.OidcErrorCode;
 import com.tcs.user_auth_management.model.dto.oidc.DtoOidcClientRegister;
 import com.tcs.user_auth_management.model.dto.oidc.DtoOidcClientResponse;
 import com.tcs.user_auth_management.model.entity.oidc.OidcClient;
@@ -14,7 +15,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,17 +69,17 @@ public class OidcClientService {
 
   public OidcClient getClientByClientId(String clientId) {
     return clientRepository.findByClientId(clientId)
-        .orElseThrow(() -> new ApiExceptionStatusException("Invalid client_id", HttpStatus.UNAUTHORIZED));
+        .orElseThrow(() -> new AppException(OidcErrorCode.INVALID_CLIENT, "Invalid client_id"));
   }
 
   public OidcClient authenticateClient(String clientId, String clientSecret) {
     OidcClient client = getClientByClientId(clientId);
     if (!client.isEnabled()) {
-      throw new ApiExceptionStatusException("Client application is disabled", HttpStatus.UNAUTHORIZED);
+      throw new AppException(OidcErrorCode.CLIENT_DISABLED);
     }
     if (!client.isPublicClient()) {
       if (clientSecret == null || !passwordEncoder.matches(clientSecret, client.getClientSecret())) {
-        throw new ApiExceptionStatusException("Invalid client credentials", HttpStatus.UNAUTHORIZED);
+        throw new AppException(OidcErrorCode.INVALID_CLIENT);
       }
     }
     return client;
@@ -87,11 +87,11 @@ public class OidcClientService {
 
   public void validateRedirectUri(OidcClient client, String redirectUri) {
     if (redirectUri == null || redirectUri.isBlank()) {
-      throw new ApiExceptionStatusException("redirect_uri is required", HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.INVALID_REDIRECT_URI, "redirect_uri is required");
     }
     Set<String> allowedUris = client.getRedirectUriSet();
     if (!allowedUris.contains(redirectUri)) {
-      throw new ApiExceptionStatusException("Invalid redirect_uri for this client", HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.INVALID_REDIRECT_URI, "Invalid redirect_uri for this client");
     }
   }
 
@@ -110,14 +110,14 @@ public class OidcClientService {
         .collect(Collectors.toSet());
 
     if (validScopes.isEmpty()) {
-      throw new ApiExceptionStatusException("No valid scopes requested", HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.INVALID_SCOPE);
     }
     return validScopes;
   }
 
   public void validateGrantType(OidcClient client, String grantType) {
     if (!client.getGrantTypeSet().contains(grantType)) {
-      throw new ApiExceptionStatusException("Grant type not allowed for this client: " + grantType, HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.UNSUPPORTED_GRANT_TYPE, "Grant type not allowed for this client: " + grantType);
     }
   }
 
@@ -129,14 +129,14 @@ public class OidcClientService {
 
   public DtoOidcClientResponse getClientDetails(UUID id) {
     OidcClient client = clientRepository.findById(id)
-        .orElseThrow(() -> new ApiExceptionStatusException("Client not found", HttpStatus.NOT_FOUND));
+        .orElseThrow(() -> new AppException(OidcErrorCode.CLIENT_NOT_FOUND));
     return DtoOidcClientResponse.fromEntity(client, null);
   }
 
   @Transactional
   public void disableClient(UUID id) {
     OidcClient client = clientRepository.findById(id)
-        .orElseThrow(() -> new ApiExceptionStatusException("Client not found", HttpStatus.NOT_FOUND));
+        .orElseThrow(() -> new AppException(OidcErrorCode.CLIENT_NOT_FOUND));
     client.setEnabled(false);
     clientRepository.save(client);
   }

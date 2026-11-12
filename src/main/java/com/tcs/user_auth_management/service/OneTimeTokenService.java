@@ -2,7 +2,8 @@ package com.tcs.user_auth_management.service;
 
 import com.tcs.user_auth_management.emuns.JwtTokenType;
 import com.tcs.user_auth_management.emuns.UserType;
-import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
+import com.tcs.user_auth_management.exception.AppException;
+import com.tcs.user_auth_management.exception.errorcode.AuthErrorCode;
 import com.tcs.user_auth_management.model.dto.JwtPayload;
 import com.tcs.user_auth_management.model.entity.OneTimeToken;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
@@ -11,7 +12,6 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -39,8 +39,7 @@ public class OneTimeTokenService {
         repository
             .findById(UUID.fromString(jwt.getId()))
             .orElseThrow(
-                () ->
-                    new ApiExceptionStatusException("Invalid jwt token", HttpStatus.UNAUTHORIZED));
+                () -> new AppException(AuthErrorCode.INVALID_ONE_TIME_TOKEN));
     repository.deleteById(oneTimeToken.getId());
     return jwt;
   }

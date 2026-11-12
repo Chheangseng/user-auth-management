@@ -1,7 +1,9 @@
 package com.tcs.user_auth_management.service.oidc;
 
 import com.tcs.user_auth_management.emuns.AuditLogEvent;
-import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
+import com.tcs.user_auth_management.exception.AppException;
+import com.tcs.user_auth_management.exception.errorcode.OidcErrorCode;
+import com.tcs.user_auth_management.exception.errorcode.UserErrorCode;
 import com.tcs.user_auth_management.model.dto.DtoUserRequestInfo;
 import com.tcs.user_auth_management.model.dto.oidc.DtoAuthorizationRequest;
 import com.tcs.user_auth_management.model.dto.oidc.DtoConsentResponse;
@@ -20,7 +22,6 @@ import java.util.Base64;
 import java.util.Set;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -41,29 +42,27 @@ public class AuthorizationService {
   @Transactional
   public String processAuthorization(DtoAuthorizationRequest authReq, UUID userAuthId) {
     if (!"code".equalsIgnoreCase(authReq.responseType())) {
-      throw new ApiExceptionStatusException("Unsupported response_type: " + authReq.responseType(), HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.UNSUPPORTED_RESPONSE_TYPE, "Unsupported response_type: " + authReq.responseType());
     }
 
     OidcClient client = clientService.getClientByClientId(authReq.clientId());
     if (!client.isEnabled()) {
-      throw new ApiExceptionStatusException("Client is disabled", HttpStatus.UNAUTHORIZED);
+      throw new AppException(OidcErrorCode.CLIENT_DISABLED);
     }
     clientService.validateRedirectUri(client, authReq.redirectUri());
     clientService.validateGrantType(client, "authorization_code");
 
     if (client.isRequirePkce() && (authReq.codeChallenge() == null || authReq.codeChallenge().isBlank())) {
-      throw new ApiExceptionStatusException("code_challenge is required for this client (PKCE)", HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.PKCE_REQUIRED);
     }
 
     Set<String> validScopes = clientService.validateAndFilterScopes(client, authReq.scope());
 
     UserAuth user = userAuthRepository.findById(userAuthId)
-        .orElseThrow(() -> new ApiExceptionStatusException("User not found", HttpStatus.UNAUTHORIZED));
+        .orElseThrow(() -> new AppException(UserErrorCode.USER_NOT_FOUND));
 
     boolean hasConsent = consentService.hasConsent(user.getId(), client.getId(), validScopes);
     if (!hasConsent) {
-      // Auto-grant consent if it's openid only, or require consent flow
-      // To support standard headless or frontend consent, auto-grant default scopes
       consentService.grantConsent(user, client, validScopes);
       DtoUserRequestInfo requestInfo = requestInfoService.userRequestInfo(request);
       activityService.saveAudit(requestInfo, user.getId(), AuditLogEvent.OIDC_CONSENT_GRANTED);
@@ -139,14 +138,14 @@ public class AuthorizationService {
   @Transactional
   public AuthorizationCode consumeAuthorizationCode(String code) {
     AuthorizationCode authCode = authCodeRepository.findByCode(code)
-        .orElseThrow(() -> new ApiExceptionStatusException("Invalid authorization code", HttpStatus.BAD_REQUEST));
+        .orElseThrow(() -> new AppException(OidcErrorCode.INVALID_AUTHORIZATION_CODE));
 
     if (authCode.isUsed()) {
-      throw new ApiExceptionStatusException("Authorization code has already been used", HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.CODE_ALREADY_USED);
     }
 
     if (authCode.getExpiresAt().isBefore(Instant.now())) {
-      throw new ApiExceptionStatusException("Authorization code has expired", HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.CODE_EXPIRED);
     }
 
     authCode.setUsed(true);

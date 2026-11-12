@@ -5,7 +5,10 @@ import com.tcs.user_auth_management.config.oidc.OidcProperties;
 import com.tcs.user_auth_management.emuns.AuditLogEvent;
 import com.tcs.user_auth_management.emuns.JwtTokenType;
 import com.tcs.user_auth_management.emuns.UserType;
-import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
+import com.tcs.user_auth_management.exception.AppException;
+import com.tcs.user_auth_management.exception.errorcode.AuthErrorCode;
+import com.tcs.user_auth_management.exception.errorcode.OidcErrorCode;
+import com.tcs.user_auth_management.exception.errorcode.UserErrorCode;
 import com.tcs.user_auth_management.model.dto.DtoUserRequestInfo;
 import com.tcs.user_auth_management.model.dto.JwtPayload;
 import com.tcs.user_auth_management.model.dto.oidc.DtoOidcTokenResponse;
@@ -29,7 +32,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -57,46 +59,46 @@ public class OidcTokenService {
   public DtoOidcTokenResponse handleTokenRequest(DtoTokenRequest tokenReq) {
     String grantType = tokenReq.grantType();
     if (grantType == null || grantType.isBlank()) {
-      throw new ApiExceptionStatusException("grant_type is required", HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.UNSUPPORTED_GRANT_TYPE, "grant_type is required");
     }
 
     return switch (grantType.toLowerCase()) {
       case "authorization_code" -> exchangeAuthorizationCode(tokenReq);
       case "refresh_token" -> exchangeRefreshToken(tokenReq);
       case "client_credentials" -> exchangeClientCredentials(tokenReq);
-      default -> throw new ApiExceptionStatusException("Unsupported grant_type: " + grantType, HttpStatus.BAD_REQUEST);
+      default -> throw new AppException(OidcErrorCode.UNSUPPORTED_GRANT_TYPE, "Unsupported grant_type: " + grantType);
     };
   }
 
   private DtoOidcTokenResponse exchangeAuthorizationCode(DtoTokenRequest tokenReq) {
     if (tokenReq.code() == null || tokenReq.code().isBlank()) {
-      throw new ApiExceptionStatusException("code is required", HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.INVALID_AUTHORIZATION_CODE, "code is required");
     }
     if (tokenReq.clientId() == null || tokenReq.clientId().isBlank()) {
-      throw new ApiExceptionStatusException("client_id is required", HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.INVALID_CLIENT, "client_id is required");
     }
 
     OidcClient client = clientService.authenticateClient(tokenReq.clientId(), tokenReq.clientSecret());
     AuthorizationCode authCode = authService.consumeAuthorizationCode(tokenReq.code());
 
     if (!authCode.getClient().getId().equals(client.getId())) {
-      throw new ApiExceptionStatusException("Authorization code does not belong to this client", HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.CODE_CLIENT_MISMATCH);
     }
 
     if (tokenReq.redirectUri() == null || !tokenReq.redirectUri().equals(authCode.getRedirectUri())) {
-      throw new ApiExceptionStatusException("redirect_uri does not match", HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.INVALID_REDIRECT_URI, "redirect_uri does not match");
     }
 
     // PKCE verification
     if (client.isRequirePkce() || authCode.getCodeChallenge() != null) {
       if (!pkceValidator.validate(tokenReq.codeVerifier(), authCode.getCodeChallenge(), authCode.getCodeChallengeMethod())) {
-        throw new ApiExceptionStatusException("Invalid PKCE code_verifier", HttpStatus.BAD_REQUEST);
+        throw new AppException(OidcErrorCode.PKCE_VERIFICATION_FAILED);
       }
     }
 
     UserAuth user = authCode.getUserAuth();
     if (!user.isEnabled()) {
-      throw new ApiExceptionStatusException("User account is locked or disabled", HttpStatus.UNAUTHORIZED);
+      throw new AppException(UserErrorCode.ACCOUNT_LOCKED);
     }
 
     Set<String> scopes = Arrays.stream(authCode.getScopes().split(" "))
@@ -128,7 +130,7 @@ public class OidcTokenService {
 
   private DtoOidcTokenResponse exchangeRefreshToken(DtoTokenRequest tokenReq) {
     if (tokenReq.refreshToken() == null || tokenReq.refreshToken().isBlank()) {
-      throw new ApiExceptionStatusException("refresh_token is required", HttpStatus.BAD_REQUEST);
+      throw new AppException(AuthErrorCode.INVALID_TOKEN, "refresh_token is required");
     }
     OidcClient client = clientService.authenticateClient(tokenReq.clientId(), tokenReq.clientSecret());
     clientService.validateGrantType(client, "refresh_token");
@@ -159,7 +161,7 @@ public class OidcTokenService {
   private DtoOidcTokenResponse exchangeClientCredentials(DtoTokenRequest tokenReq) {
     OidcClient client = clientService.authenticateClient(tokenReq.clientId(), tokenReq.clientSecret());
     if (client.isPublicClient()) {
-      throw new ApiExceptionStatusException("Public clients cannot use client_credentials grant", HttpStatus.BAD_REQUEST);
+      throw new AppException(OidcErrorCode.PUBLIC_CLIENT_RESTRICTION);
     }
     clientService.validateGrantType(client, "client_credentials");
 
@@ -260,7 +262,7 @@ public class OidcTokenService {
       response.put("scope", jwt.getClaimAsString("scope"));
       response.put("token_type", "Bearer");
       return response;
-    } catch (JwtException | ApiExceptionStatusException e) {
+    } catch (JwtException | AppException e) {
       return Map.of("active", false);
     }
   }

@@ -1,6 +1,7 @@
 package com.tcs.user_auth_management.service.oidc;
 
-import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
+import com.tcs.user_auth_management.exception.AppException;
+import com.tcs.user_auth_management.exception.errorcode.UserErrorCode;
 import com.tcs.user_auth_management.model.dto.oidc.DtoUserInfoResponse;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import com.tcs.user_auth_management.repository.UserAuthRepository;
@@ -10,7 +11,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,7 +20,7 @@ public class UserInfoService {
 
   public DtoUserInfoResponse getUserInfo(UUID userId, String scopeString) {
     UserAuth user = userAuthRepository.findById(userId)
-        .orElseThrow(() -> new ApiExceptionStatusException("User not found", HttpStatus.NOT_FOUND));
+        .orElseThrow(() -> new AppException(UserErrorCode.USER_NOT_FOUND));
 
     Set<String> scopes = (scopeString == null || scopeString.isBlank())
         ? Collections.emptySet()
