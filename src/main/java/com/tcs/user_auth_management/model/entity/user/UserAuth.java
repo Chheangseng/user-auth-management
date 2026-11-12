@@ -25,6 +25,19 @@ public class UserAuth extends BaseEntityUUID {
   @Column(unique = true, nullable = false)
   private String recoveryEmail;
 
+  private String displayName;
+
+  private String profilePictureUrl;
+
+  private String phoneNumber;
+
+  @Column(columnDefinition = "TEXT")
+  private String address;
+
+  private String locale;
+
+  private String zoneinfo;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(
       name = "role_id",
@@ -37,7 +50,7 @@ public class UserAuth extends BaseEntityUUID {
   private boolean emailVerified = false;
 
   @Column(nullable = false, columnDefinition = "int default 0")
-  private int riskScore  = 0;
+  private int riskScore = 0;
 
   @Enumerated(EnumType.STRING)
   private UserType type = UserType.NORMAL_USER;

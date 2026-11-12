@@ -9,7 +9,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.springframework.data.annotation.CreatedBy;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 
@@ -18,7 +17,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 @MappedSuperclass
 public abstract class EntityAudit {
   @CreationTimestamp
-  @Column(name = "created_at", updatable = false)
+  @Column(name = "created_at", updatable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
   private Instant createdAt;
 
   @Column(name = "created_by", updatable = false)
@@ -26,7 +25,7 @@ public abstract class EntityAudit {
   private String createdBy;
 
   @LastModifiedDate
-  @Column(name = "updated_at")
+  @Column(name = "updated_at", columnDefinition = "TIMESTAMP WITH TIME ZONE")
   private Instant updatedAt;
 
   @Column(name = "updated_by")

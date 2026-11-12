@@ -20,7 +20,7 @@ import org.hibernate.type.SqlTypes;
     name = "user_sessions",
     indexes = {@Index(name = "idx_user_session_jwt_token_id", columnList = "jwtTokenId")})
 public class UserSession extends BaseEntityUUID {
-  @Column(nullable = false)
+  @Column(nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
   private Instant expiryDate;
 
   @ManyToOne(fetch = FetchType.LAZY)
@@ -30,6 +30,7 @@ public class UserSession extends BaseEntityUUID {
   @Column(nullable = false)
   private boolean invoked = false;
 
+  @Column(columnDefinition = "TIMESTAMP WITH TIME ZONE")
   private Instant invokedTime;
 
   @Column(length = 45, nullable = false)
@@ -44,6 +45,7 @@ public class UserSession extends BaseEntityUUID {
 
   private UUID jwtTokenId;
 
+  @Column(columnDefinition = "TIMESTAMP WITH TIME ZONE")
   private Instant updateJwtTokenIdAt;
 
   public void generateJwtTokenId() {

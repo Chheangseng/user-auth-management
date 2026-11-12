@@ -1,6 +1,7 @@
 package com.tcs.user_auth_management.model.entity;
 
 import com.tcs.user_auth_management.model.entity.common.BaseEntityUUID;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -14,6 +15,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class OneTimeToken extends BaseEntityUUID {
+  @Column(columnDefinition = "TIMESTAMP WITH TIME ZONE")
   private Instant expireTime;
   private boolean isUsed = false;
   /// allow token to be use if have matching bindingId

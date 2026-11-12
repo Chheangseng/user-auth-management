@@ -40,8 +40,17 @@ public class SecurityConfig implements WebMvcConfigurer {
                         "/v3/api-docs/**",
                         "/error",
                         "/error/**",
-                        "/.well-known/**")
+                        "/.well-known/**",
+                        "/oauth2/authorize",
+                        "/oauth2/token",
+                        "/oauth2/revoke",
+                        "/oauth2/introspect")
                     .permitAll()
+                    .requestMatchers(
+                        "/oauth2/userinfo",
+                        "/oauth2/consent",
+                        "/oauth2/consent-info")
+                    .authenticated()
                     .requestMatchers("/admin/**")
                     .hasRole(Role.ADMIN.getValue().toUpperCase())
                     .anyRequest()
@@ -63,7 +72,7 @@ public class SecurityConfig implements WebMvcConfigurer {
         .addMapping("/**")
         .allowedOrigins("*")
         .allowCredentials(false)
-        .allowedMethods("GET", "POST", "PUT", "DELETE")
+        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
         .allowedHeaders("*");
   }
 
