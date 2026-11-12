@@ -18,7 +18,7 @@ public class SwaggerConfig {
     final String securitySchemeName = "bearerAuth";
 
     return new OpenAPI()
-        .info(new Info().title("My API").description("My API Documentation").version("1.0"))
+        .info(new Info().title("User Auth & OIDC API").description("Authentication and OpenID Connect Provider Documentation").version("1.0"))
         .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
         .components(
             new Components()
@@ -39,7 +39,6 @@ public class SwaggerConfig {
             .build();
   }
 
-
   private GroupedOpenApi groupedOpenApiJwt(String group, String... pathToMatch) {
     return GroupedOpenApi.builder()
             .group(group)
@@ -59,6 +58,11 @@ public class SwaggerConfig {
 
   @Bean
   GroupedOpenApi oauth2Endpoint() {
-    return groupedOpenApi("Oauth 2 Endpoints", "/**/.well-known/**");
+    return groupedOpenApi("OAuth2 & OIDC Public Endpoints", "/.well-known/**", "/oauth2/authorize", "/oauth2/token", "/oauth2/revoke", "/oauth2/introspect");
+  }
+
+  @Bean
+  GroupedOpenApi oidcSecuredEndpoint() {
+    return groupedOpenApiJwt("OIDC Protected Endpoints", "/oauth2/userinfo", "/oauth2/consent", "/admin/oidc/**");
   }
 }

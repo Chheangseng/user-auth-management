@@ -1,7 +1,8 @@
 package com.tcs.user_auth_management.model.entity.user;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
+import com.tcs.user_auth_management.exception.AppException;
+import com.tcs.user_auth_management.exception.errorcode.CommonErrorCode;
 import com.tcs.user_auth_management.model.entity.user.authorization.Role;
 import java.util.Collection;
 import java.util.HashSet;
@@ -11,7 +12,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.Getter;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -100,7 +100,7 @@ public class UserSecurity implements UserDetails {
   public static UserSecurity getRequiredCurrentUser() {
     var user = getCurrentUser();
     if (user.isEmpty()) {
-      throw new ApiExceptionStatusException("Invalid user", HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new AppException(CommonErrorCode.UNAUTHORIZED, "Invalid user");
     }
     return user.get();
   }

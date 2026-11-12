@@ -1,6 +1,7 @@
 package com.tcs.user_auth_management.service.user;
 
-import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
+import com.tcs.user_auth_management.exception.AppException;
+import com.tcs.user_auth_management.exception.errorcode.AuthErrorCode;
 import com.tcs.user_auth_management.model.dto.DtoUserSession;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
 import com.tcs.user_auth_management.model.entity.user.UserSession;
@@ -12,9 +13,6 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -44,16 +42,11 @@ public class UserSessionService {
   public UserSession rotateSessionToken(UUID oldJwtId, long expireInSec) {
     UserSession session = getUserSessionByJwtId(oldJwtId);
     Instant now = Instant.now();
-    // Check if we already rotated this token very recently
-    // reason to check 30sec because if user have fail connection they can retry to get new jwt
-    // token
-    // without have to Re-login again
     boolean isInGracePeriod =
         session.getUpdateJwtTokenIdAt() != null
             && session.getUpdateJwtTokenIdAt().isAfter(now.minusSeconds(30));
 
     if (!isInGracePeriod) {
-      // generate new jwt token id so user can't use their old token
       session.generateJwtTokenId();
       session.setUpdateJwtTokenIdAt(now);
     }
@@ -77,8 +70,7 @@ public class UserSessionService {
   public void invokeSessionById(UUID sessionId, UUID userId) {
     var userSession = getUserSessionBySessionId(sessionId);
     if (Objects.nonNull(userId) && !userId.equals(userSession.getUserAuth().getId())) {
-      throw new ApiExceptionStatusException(
-          "Cannot invoke session belonging to another user", HttpStatus.UNAUTHORIZED);
+      throw new AppException(AuthErrorCode.UNAUTHORIZED_SESSION_ACCESS);
     }
     userSession.setInvoked(true);
     userSession.setInvokedTime(Instant.now());
@@ -93,14 +85,14 @@ public class UserSessionService {
     return repository
         .findByJwtId(jwtId)
         .orElseThrow(
-            () -> new ApiExceptionStatusException("Invalid Jwt token", HttpStatus.BAD_REQUEST));
+            () -> new AppException(AuthErrorCode.INVALID_TOKEN));
   }
 
   public UserSession verifyUserSession(UUID sessionId, UUID jwtId) {
     var userSession = getUserSessionBySessionId(sessionId);
     validateSession(userSession);
     if (!jwtId.equals(userSession.getJwtTokenId())) {
-      throw new BadCredentialsException("Invalid JWT token ID");
+      throw new AppException(AuthErrorCode.INVALID_TOKEN, "Invalid JWT token ID");
     }
 
     return userSession;
@@ -110,17 +102,17 @@ public class UserSessionService {
     return repository
         .findById(sessionId)
         .orElseThrow(
-            () -> new ApiExceptionStatusException("Invalid Jwt token", HttpStatus.BAD_REQUEST));
+            () -> new AppException(AuthErrorCode.INVALID_TOKEN));
   }
 
   public void validateSession(UserSession userSession) {
     // Check if session has expired
     if (userSession.getExpiryDate().isBefore(Instant.now())) {
-      throw new BadCredentialsException("Session has expired");
+      throw new AppException(AuthErrorCode.SESSION_EXPIRED);
     }
     // Check if session is revoked
     if (userSession.isInvoked()) {
-      throw new BadCredentialsException("Session has been revoked");
+      throw new AppException(AuthErrorCode.SESSION_REVOKED);
     }
   }
 }

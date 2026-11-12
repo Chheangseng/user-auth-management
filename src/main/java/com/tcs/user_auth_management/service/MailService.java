@@ -2,12 +2,14 @@ package com.tcs.user_auth_management.service;
 
 import com.tcs.user_auth_management.config.mailSender.MailConfigProperties;
 import com.tcs.user_auth_management.model.dto.DtoMailMessage;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 public class MailService {
   private final JavaMailSender javaMailSender;
   private final MailConfigProperties properties;
@@ -18,12 +20,18 @@ public class MailService {
   }
 
   public void sendMail(DtoMailMessage message) {
-    SimpleMailMessage mail = new SimpleMailMessage();
-    mail.setFrom(properties.getMailHost());
-    mail.setTo(message.email());
-    mail.setSubject(message.subject());
-    mail.setText(message.message());
-    javaMailSender.send(mail);
+    try {
+      SimpleMailMessage mail = new SimpleMailMessage();
+      mail.setFrom(properties.getMailHost());
+      mail.setTo(message.email());
+      mail.setSubject(message.subject());
+      mail.setText(message.message());
+      javaMailSender.send(mail);
+      log.info("Email sent successfully to: {}", message.email());
+    } catch (Exception e) {
+      log.error("Failed to send email to {}: {}", message.email(), e.getMessage(), e);
+      throw e;
+    }
   }
 
   public void sendForgotPassword(

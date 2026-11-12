@@ -1,8 +1,7 @@
 package com.tcs.user_auth_management.util;
 
-import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
-import org.springframework.http.HttpStatus;
-
+import com.tcs.user_auth_management.exception.AppException;
+import com.tcs.user_auth_management.exception.errorcode.AuthErrorCode;
 import java.util.UUID;
 
 public class StringParseUtil {
@@ -10,7 +9,7 @@ public class StringParseUtil {
         try{
             return UUID.fromString(value);
         }catch (IllegalArgumentException e){
-            throw new ApiExceptionStatusException("Invalid jwt payload", HttpStatus.UNAUTHORIZED);
+            throw new AppException(AuthErrorCode.INVALID_TOKEN_PAYLOAD, "Invalid jwt payload");
         }
     }
 }

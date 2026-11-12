@@ -3,7 +3,9 @@ package com.tcs.user_auth_management.service.user;
 import com.tcs.user_auth_management.config.taskConfig.VirtualExecutor;
 import com.tcs.user_auth_management.emuns.AuditLogEvent;
 import com.tcs.user_auth_management.emuns.JwtTokenType;
-import com.tcs.user_auth_management.exception.ApiExceptionStatusException;
+import com.tcs.user_auth_management.exception.AppException;
+import com.tcs.user_auth_management.exception.errorcode.AuthErrorCode;
+import com.tcs.user_auth_management.exception.errorcode.UserErrorCode;
 import com.tcs.user_auth_management.exception.jwt.JwtInvalidPayloadException;
 import com.tcs.user_auth_management.model.dto.DtoJwtTokenResponse;
 import com.tcs.user_auth_management.model.dto.DtoUserRequestInfo;
@@ -25,7 +27,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import lombok.AllArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -73,7 +74,7 @@ public class AuthService {
   public void changePassword(UUID userId, DtoChangePassword changePassword) {
     var user = isUserActive(userId);
     if (!passwordEncoder.matches(changePassword.oldPassword(), user.getPassword())) {
-      throw new ApiExceptionStatusException("Incorrect old password", HttpStatus.UNAUTHORIZED);
+      throw new AppException(AuthErrorCode.INCORRECT_OLD_PASSWORD);
     }
     user.setPassword(passwordEncoder.encode(changePassword.newPassword()));
     repository.save(user);
@@ -179,8 +180,7 @@ public class AuthService {
     var user = this.isUserActiveByUsernameWithRole(login.username());
     if (!passwordEncoder.matches(login.password(), user.getPassword())) {
       activityService.asyncSaveAudit(requestInfo, user.getId(), AuditLogEvent.LOGIN_FAILURE);
-      throw new ApiExceptionStatusException(
-          "Invalid username or password.", HttpStatus.UNAUTHORIZED);
+      throw new AppException(AuthErrorCode.INVALID_CREDENTIALS);
     }
     activityService.asyncSaveAudit(requestInfo, user.getId(), AuditLogEvent.LOGIN_SUCCESS);
     return user;
@@ -191,10 +191,9 @@ public class AuthService {
         repository
             .findById(userId)
             .orElseThrow(
-                () -> new ApiExceptionStatusException("User not found", HttpStatus.NOT_FOUND));
+                () -> new AppException(UserErrorCode.USER_NOT_FOUND));
     if (!user.isEnabled()) {
-      throw new ApiExceptionStatusException(
-          "Your account have been locked.", HttpStatus.UNAUTHORIZED);
+      throw new AppException(UserErrorCode.ACCOUNT_LOCKED);
     }
     return user;
   }
@@ -204,10 +203,9 @@ public class AuthService {
         repository
             .findByUsernameWithRole(username)
             .orElseThrow(
-                () -> new ApiExceptionStatusException("Invalid username", HttpStatus.UNAUTHORIZED));
+                () -> new AppException(UserErrorCode.USER_NOT_FOUND, "Invalid username"));
     if (!user.isEnabled()) {
-      throw new ApiExceptionStatusException(
-          "Your account have been locked.", HttpStatus.UNAUTHORIZED);
+      throw new AppException(UserErrorCode.ACCOUNT_LOCKED);
     }
     return user;
   }
@@ -228,20 +226,21 @@ public class AuthService {
       boolean emailExists = emailExistsFuture.get();
 
       if (usernameExists) {
-        throw new ApiExceptionStatusException(
-            String.format("This username %s has already been used", register.username()),
-            HttpStatus.BAD_REQUEST);
+        throw new AppException(
+            UserErrorCode.USERNAME_ALREADY_EXISTS,
+            String.format("This username %s has already been used", register.username()));
       }
 
       if (emailExists) {
-        throw new ApiExceptionStatusException(
-            String.format("This Email %s has already been used", register.email()),
-            HttpStatus.BAD_REQUEST);
+        throw new AppException(
+            UserErrorCode.EMAIL_ALREADY_EXISTS,
+            String.format("This Email %s has already been used", register.email()));
       }
 
     } catch (InterruptedException | ExecutionException e) {
-      throw new ApiExceptionStatusException(
-          "Error checking duplicate user info", HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new AppException(
+          UserErrorCode.USER_CHECK_ERROR,
+          "Error checking duplicate user info", e);
     }
   }
 }

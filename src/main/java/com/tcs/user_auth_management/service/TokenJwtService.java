@@ -2,6 +2,7 @@ package com.tcs.user_auth_management.service;
 
 import com.tcs.user_auth_management.emuns.JwtTokenType;
 import com.tcs.user_auth_management.emuns.UserType;
+import com.tcs.user_auth_management.exception.AppException;
 import com.tcs.user_auth_management.model.dto.DtoJwtTokenResponse;
 import com.tcs.user_auth_management.model.dto.JwtPayload;
 import com.tcs.user_auth_management.model.entity.user.UserAuth;
@@ -10,11 +11,13 @@ import java.time.Instant;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Service;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class TokenJwtService {
   private final JwtEncoder encoder;
   private final TokenJwtVerifyService jwtVerifyService;
@@ -77,7 +80,11 @@ public class TokenJwtService {
           jwt.getIssuedAt() != null ? jwt.getIssuedAt().getEpochSecond() : 0,
           "scope",
           jwt.getClaimAsString("scope"));
-    } catch (JwtException e) {
+    } catch (JwtException | AppException e) {
+      log.debug("Introspection determined token is inactive: {}", e.getMessage());
+      return Map.of("active", false);
+    } catch (Exception e) {
+      log.error("Unexpected error during token introspection: {}", e.getMessage(), e);
       return Map.of("active", false);
     }
   }
